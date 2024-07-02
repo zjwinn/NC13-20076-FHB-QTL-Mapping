@@ -1,0 +1,2816 @@
+---
+title: "NC13955 QTL Analysis Script"
+author: "Zach Winn"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+#library
+library(gaston)
+library(devtools)
+library(bwardr)
+library(gaston)
+library(tidyverse)
+library(asreml)
+library(ASMap)
+library(qtl)
+library(Hmisc)
+library(ggcorrplot)
+library(psych)
+library(knitr)
+library(ggplot2)
+library(parallel)
+
+# Write Brian's function
+format_qtlmap_geno<-function (bed, 
+                              par_a, 
+                              par_b, 
+                              rm_het = TRUE, 
+                              rm_miss = TRUE, 
+                              include_pars = TRUE, 
+                              out_fmt = "rqtl"){
+  
+  if (!(par_a %in% bed@ped$id)) {
+      stop("Parent A is not present in supplied bed matrix")
+  }
+  if (!(par_b %in% bed@ped$id)) {
+      stop("Parent B is not present in supplied bed matrix")
+  }
+  if (!(is.logical(rm_het) & is.logical(rm_miss) & is.logical(include_pars))) {
+      stop("rm_het, rm_miss, and include_pars must be TRUE or FALSE")
+  }
+  if (!(out_fmt %in% c("icimapping", "rqtl"))) {
+      stop("Please select either 'icimapping' or 'rqtl' for out_fmt")
+  }
+  genomat <- as.data.frame(t(gaston::as.matrix(bed)))
+  parents <- data.frame(snp = rownames(genomat), a = genomat[[par_a]], 
+      b = genomat[[par_b]], stringsAsFactors = FALSE)
+  parents$sum <- parents$a + parents$b
+  drop_snps <- NULL
+  drop_snps <- union(drop_snps, parents$snp[parents$a == parents$b])
+  if (rm_het) {
+      drop_snps <- union(drop_snps, parents$snp[parents$a == 
+          1 | parents$b == 1])
+  }
+  else {
+      drop_snps <- union(drop_snps, parents$snp[is.na(parents$a) & 
+          parents$b == 1])
+      drop_snps <- union(drop_snps, parents$snp[parents$a == 
+          1 & is.na(parents$b)])
+  }
+  if (rm_miss) {
+      drop_snps <- union(drop_snps, parents$snp[is.na(parents$a) | 
+          is.na(parents$b)])
+  }
+  else {
+      drop_snps <- union(drop_snps, parents$snp[is.na(parents$a) & 
+          is.na(parents$b)])
+  }
+  genomat <- genomat[!rownames(genomat) %in% drop_snps, ]
+  bed@snps <- bed@snps[!bed@snps$id %in% drop_snps, ]
+  flip <- parents$snp[parents$a == 2]
+  flip <- union(flip, parents$snp[is.na(parents$sum) & parents$b == 
+      0])
+  flip <- union(flip, parents$snp[parents$sum == 1 & parents$b == 
+      0])
+  flip <- flip[!is.na(flip)]
+  genomat[flip, ] <- genomat[flip, ] - 2
+  genomat <- abs(genomat)
+  if (include_pars) {
+      colorder <- setdiff(colnames(genomat), c(par_a, par_b))
+      colorder <- c(par_a, par_b, colorder)
+      genomat <- genomat[colorder]
+  }
+  else {
+      genomat[c(par_a, par_b)] <- NULL
+  }
+  genomat$id <- rownames(genomat)
+  if (out_fmt == "icimapping") {
+      genomat[is.na(genomat)] <- -1
+      id_df <- bed@snps[c("id", "chr", "dist", "pos", "A1", 
+          "A2")]
+      out_df <- merge(id_df, genomat, by = "id")
+  }
+  else {
+      genomat[genomat == 0] <- "A"
+      genomat[genomat == 2] <- "B"
+      genomat[genomat == 1] <- "H"
+      genomat[is.na(genomat)] <- "-"
+      id_df <- bed@snps[c("id", "chr", "dist")]
+      out_df <- merge(id_df, genomat, by = "id")
+      names(out_df)[2:3] <- ""
+  }
+  out_list <- list(abh = out_df, flipped = flip)
+  return(out_list)
+}
+```
+
+
+# Introduction
+
+This is a reanalysis of the NC13955 population QTL analysis. This is done to produce a single, specific QTL analysis for publication.
+
+```{r}
+#set working directory
+setwd("C:/Users/zwinn/OneDrive/Publication/Manuscripts_In_Progress/FHB QTL/Final Formatted Data and Analysis")
+
+#read in data
+pheno<-read.csv("NC13955_Combined_Data_Final.csv")
+
+# Read in potential selfs
+selfs <- read.csv("list_of_potential_selfs.csv")
+
+# Remove selfs
+pheno <- pheno %>%
+  filter(!GENOTYPE %in% selfs$GENOTYPE)
+
+#make sure everything is the right value
+pheno[,1:7]<-lapply(pheno[,1:7], as.factor)
+pheno[,8:ncol(pheno)]<-lapply(pheno[,8:ncol(pheno)], as.numeric)
+```
+
+# Calculate BLUEs within and across environments
+
+```{r}
+#set up lists for loop
+env<-levels(pheno$ENV)
+traits<-colnames(pheno)[8:12]
+
+#create dataframe for means out
+BLUEs_loc<-data.frame(GENOTYPE=unique(pheno$GENOTYPE))
+
+#check normality
+for (i in traits){
+  hist(pheno[[i]], main=i)
+}
+
+#run models for each environment
+for(i in env){
+  for(j in traits){
+    
+    # Print
+    print_message <- paste("### Analyzing", j, "in", i, "###")
+    print(paste(rep("#", nchar(print_message)), collapse = ""))
+    print(print_message)
+    print(paste(rep("#", nchar(print_message)), collapse = ""))
+    
+    # Read
+    pheno_subset <- na.omit(pheno[pheno$ENV==i, c("GENOTYPE", "REP", j)])
+    colnames(pheno_subset)[3] <- "Y"
+    
+    # Check 
+    if(nrow(na.omit(pheno_subset))==0){
+      # Throw message
+      print(paste("###", j, "not taken in", i, "moving on..."))
+      remove(pheno_subset)
+      next
+    }
+    
+    if(j=="FHB" | j=="FDK" | j=="DON"){
+      
+      # Run model and pull estimates
+      fit <- asreml(fixed = Y~GENOTYPE,
+                    random = ~REP,
+                    residual = ~units,
+                    data = pheno_subset,
+                    family = asr_poisson(),
+                    maxit = 75)
+      
+      # Check if model converges and if it doesn't default to RCBD with normal distribution
+      if(fit$converge==FALSE | c(i=="WAR20" & j=="FHB")){
+
+        fit <- asreml(fixed = Y~GENOTYPE,
+                      random = ~REP,
+                      residual = ~units,
+                      data = pheno_subset,
+                      #family = asr_poisson(),
+                      maxit = 75)
+        fit <- update.asreml(fit)
+        
+                
+      }
+      
+      pred <- predict(fit, classify = "GENOTYPE", maxit = 75)$pvals[,c("GENOTYPE", "predicted.value")]
+      colnames(pred)[2] <- paste(j, "_", i, sep = "")
+      BLUEs_loc <- left_join(BLUEs_loc, pred, by = "GENOTYPE")
+      
+    }else{
+     
+      # Run model and pull estimates 
+      fit <- asreml(fixed = Y~GENOTYPE,
+                    random = ~REP,
+                    residual = ~units,
+                    data = pheno_subset)
+      pred <- predict(fit, classify = "GENOTYPE")$pvals[,c("GENOTYPE", "predicted.value")]
+      colnames(pred)[2] <- paste(j, "_", i, sep = "")
+      BLUEs_loc <- left_join(BLUEs_loc, pred, by = "GENOTYPE")      
+      
+    }
+    # Remove
+    remove(pheno_subset, fit, pred)
+    
+  }
+}
+```
+
+# Multi-Environmental Models
+
+```{r}
+#define traits
+traits<-colnames(pheno)[8:12]
+
+#make dataframe for predictions
+BLUEs_mem<-data.frame(GENOTYPE=unique(pheno$GENOTYPE))
+
+#run MEMLM loop
+for (i in traits){
+  
+  # Print
+  print_message <- paste("### Analyzing", i, "###")
+  print(paste(rep("#", nchar(print_message)), collapse = ""))
+  print(print_message)
+  print(paste(rep("#", nchar(print_message)), collapse = ""))
+  
+  # Subset data
+  pheno_subset <- na.omit(pheno[,c("GENOTYPE", "YEAR", "ENV", "REP", i)])
+  
+  # Redefine sections
+  pheno_subset[,1:4] <- lapply(pheno_subset[,1:4], as.factor)
+  pheno_subset[,5] <- as.numeric(pheno_subset[,5])
+  colnames(pheno_subset)[5] <- "Y"
+  
+  # Run model
+  if(i=="FHB" | i=="FDK" | i=="DON"){
+    
+    fit <- asreml(fixed = Y~GENOTYPE,
+                  random = ~REP:ENV+GENOTYPE:ENV,
+                  residual = ~units,
+                  data = pheno_subset,
+                  family = asr_poisson(),
+                  maxit = 75)
+  
+  }else{
+  
+    fit <- asreml(fixed = Y~GENOTYPE,
+                  random = ~REP:ENV+GENOTYPE:ENV,
+                  residual = ~units,
+                  data = pheno_subset,
+                  #family = asr_poisson(),
+                  maxit = 75)
+      
+  }
+  
+  # Get prediction
+  pred <- predict(fit, classify = "GENOTYPE")$pvals[,1:2]
+  colnames(pred)[2] <- paste(i, "ME", sep = "_") 
+  
+  # Left join
+  BLUEs_mem <- left_join(BLUEs_mem, pred, by="GENOTYPE")
+  
+  remove(pheno_subset, fit, pred)
+}
+
+BLUEs_mem<-BLUEs_mem %>%
+  select(GENOTYPE, FHB_ME, FDK_ME, DON_ME, HD_ME, PH_ME)
+
+pairs.panels(BLUEs_mem[,2:ncol(BLUEs_mem)], stars = T, lm=T)
+```
+
+# Heritabilities
+
+```{r}
+#make an empty data frame for the heritability estimates
+h2s<-data.frame(Trait=character(), 
+                Type=character(), 
+                Estimation=numeric(), 
+                SE=numeric())
+
+#calculate the harmonic means for each trait
+e_traits<-list()
+r_traits<-list()
+
+for(j in traits){
+  a<-pheno %>% 
+    drop_na(all_of(j))
+  
+  obs_per_ind<-aggregate(a[,j]~GENOTYPE, 
+                         data=a,
+                         length)
+  r<-(1/mean(1/obs_per_ind$`a[, j]`))
+  r_traits[j]<-r
+  
+  e<-c()
+  
+  for(i in unique(pheno$GENOTYPE)){
+    a<-na.omit(pheno[pheno$GENOTYPE==i,c("ENV", j)])
+    a<-length(unique(a$ENV))
+    a<-ifelse(a==0,0,1/a)
+    e<-rbind(e,a)
+  }
+
+  e_traits[j]<-(1/mean(e)) 
+  
+  remove(a, obs_per_ind, r, e)
+}
+
+
+for (i in traits){
+  print(paste("------- Analyzing trait", i, "-------"))
+  
+  n_loc<-pheno %>% 
+    select(ENV, YEAR, LOC, all_of(i)) %>% 
+    drop_na() %>% 
+    distinct(ENV)
+  
+  n_loc=as.numeric(nrow(n_loc))
+  
+  n_rep=n_loc*2
+  
+  n_year=pheno %>% 
+    select(ENV, YEAR, LOC, all_of(i)) %>% 
+    drop_na() %>% 
+    distinct(YEAR)
+  
+  n_year<-as.numeric(count(n_year))
+  
+  e<-as.numeric(e_traits[i])
+  r<-as.numeric(r_traits[i])
+  
+  if(((n_year)>=2)){
+    
+    print(paste(i, "has multiple years of data"))
+    
+    if(i=="FHB" | i=="FDK" | i=="DON"){
+      #Run Model
+      mlm<-asreml(fixed = pheno[,i]~1,
+                random = ~ GENOTYPE+
+                  ENV+
+                  GENOTYPE:ENV,
+                residual = ~idv(units),
+                data = pheno,
+                maxit=75,
+                family= asr_poisson())
+      
+      #print summary of variance comps
+      print(summary(mlm)$varcomp)
+      
+      #pull predictions
+      pph2<-vpredict(mlm, 
+                     h2~V2/(V2+V3+V4))
+      
+      emh2<-vpredict(mlm,
+                     h2~V2/(V2+(V3/e)+(V4/(e*r))))
+      
+      #bind predictions
+      a<-rbind(pph2,emh2)
+      a<-cbind(data.frame(Trait=c(i, i)), data.frame(Type=c("Per-Plot", "Entry-Mean")), a)
+      h2s<-rbind(h2s,a)
+      remove(a, pph2, emh2)
+      
+    }else{
+      
+        #Run Model
+        mlm<-asreml(fixed = pheno[,i]~1,
+                  random = ~ (GENOTYPE)+
+                    ENV+
+                    GENOTYPE:ENV,
+                  residual = ~idv(units),
+                  data = pheno,
+                  maxit=75)
+        
+        #print summary of variance comps
+        print(summary(mlm)$varcomp)
+        
+        #pull predictions
+        pph2<-vpredict(mlm, 
+                       h2~V2/(V2+V3+V4))
+        
+        emh2<-vpredict(mlm,
+                       h2~V2/(V2+(V3/e)+(V4/(e*r))))
+        
+        #bind predictions
+        a<-rbind(pph2,emh2)
+        a<-cbind(data.frame(Trait=c(i, i)), data.frame(Type=c("Per-Plot", "Entry-Mean")), a)
+        h2s<-rbind(h2s,a)
+        remove(a, pph2, emh2)
+        
+    }
+  }else{
+    
+    print(paste(i, "has a single year of data"))
+    
+    mlm<-asreml(fixed = pheno[,i]~1,
+              random = ~ (GENOTYPE)+
+                ENV+
+                GENOTYPE:ENV,
+              residual = ~idv(units),
+              data = pheno,
+              maxit=75)
+        
+    print(summary(mlm)$varcomp)
+    
+    pph2<-vpredict(mlm, 
+                   h2~V2/(V2+V3+V4))
+    
+    emh2<-vpredict(mlm,
+                   h2~V2/(V2+(V3/e)+(V4/(e*r))))
+        
+    a<-rbind(pph2,emh2)
+    a<-cbind(data.frame(Trait=c(i, i)), data.frame(Type=c("Per-Plot", "Entry-Mean")), a)
+    h2s<-rbind(h2s,a)
+    remove(a, pph2, emh2)
+  }
+  
+  remove(n_loc, n_rep, n_year, e, r)
+}
+
+kable(h2s, row.names = F, caption="Heritability Estimates and Their Resultant Standard Errors")
+
+write.csv(h2s,
+          "heritabilities.csv",
+          row.names = FALSE)
+```
+
+# Make the rQTL file
+
+```{r}
+#read in genetic information
+geno<-read.vcf("NC13-20076xGA06493-13LE6_filt.vcf.gz", convert.chr = F)
+
+#convert genotype matrix to format for rqtl 
+geno<-format_qtlmap_geno(geno, 
+                         par_a="13955-GA06493-13LE6",
+                         par_b="13955-NC13-20076",
+                         rm_het=T, 
+                         rm_miss=T, 
+                         include_pars=T, 
+                         out_fmt="rqtl")$abh
+
+#replace heterozygous calls with missing data
+geno<-replace(geno, geno=="H", "-")
+
+#manipulate the genetic file to look like r qtl wants it
+geno<-as.data.frame(t(geno))
+colnames(geno)<-geno[1,]
+geno<-geno[-1,]
+geno<-cbind(substr(gsub("[.]", "-", rownames(geno)), start = 2, stop = nchar(rownames(geno))),geno)
+rownames(geno)<-NULL
+geno<-rownames_to_column(geno, var="dummy") #create a dummy column to sort later on
+geno$dummy<-as.numeric(geno$dummy)
+colnames(geno)[2]<-"GENOTYPE"
+geno[1:2,2]<-""
+
+#merge all the blues
+BLUEs_all<-left_join(BLUEs_mem, BLUEs_loc, by="GENOTYPE")
+
+#merge the pheno and geno files
+insertme<-full_join(BLUEs_all, geno, by="GENOTYPE")
+insertme<-insertme[order(insertme$dummy),] #order by dummy
+insertme<-insertme[1,]
+pheno_geno<-left_join(BLUEs_all, geno, by="GENOTYPE")
+pheno_geno<-rbind(insertme,pheno_geno)
+pheno_geno<-pheno_geno[order(pheno_geno$dummy),] #order by dummy
+pheno_geno<-pheno_geno %>% filter(!is.na(dummy)==T) #get rid of any genotype that is not present
+pheno_geno[1,(1:30)]<-"" #replace any NAs with blank data
+dropme<-c("13955-AGS-2026","13955-JAMESTOWN", "13955-NCAG11", "13955-NC13-20076", "13955-GA06493-13LE6")
+pheno_geno<-pheno_geno[!(pheno_geno$GENOTYPE %in% dropme),]
+pheno_geno<-pheno_geno %>%
+  select(-dummy)
+colnames(pheno_geno)<-gsub("FHB", "VR", colnames(pheno_geno))
+
+#write out rqtl file
+write.csv(pheno_geno,
+          "rqtl_input_file.csv",
+          row.names = F)
+```
+
+# Make a pairs plot of traits
+
+```{r}
+pairs_plot_dat<-BLUEs_mem
+colnames(pairs_plot_dat)<-c("Genotype",
+                            "Visual Rating (1-9)",
+                            "Fusarium Damaged Kernels (%)",
+                            "Deoxynivalenol Content (PPM)",
+                            "Heading Date (Days)",
+                            "Plant Height (cm)")
+
+jpeg(filename = "pairs_plot.jpg",
+     width = 9,
+     height = 9,
+     units = "in",
+     res = 320)
+
+pairs.panels(pairs_plot_dat[,2:ncol(pairs_plot_dat)],
+             hist.col = "gray",
+             lm = TRUE,
+             stars = TRUE,
+             digits = 2,
+             density = FALSE,
+             ellipses = FALSE)
+
+dev.off()
+```
+
+# Build Linkage Map
+
+```{r}
+#read in file
+cross_file<-read.cross("csv", 
+                       file="rqtl_input_file.csv",
+                       genotypes=c("A","B","-"), 
+                       alleles=c("A","B"), 
+                       crosstype="dh")
+
+toss_me <- read.table("markers_to_remove.txt")[,1]
+
+#Pull distorted markers
+gt<-geno.table(cross_file)
+toss_me<-unique(c(toss_me, rownames(gt[gt$P.value<0.0001,])))
+cross_file<-drop.markers(cross_file, toss_me)
+
+#remove junk
+remove(dropme, toss_me, gt)
+
+#create map with cM instead of BP
+cross_file<- mstmap(cross_file,
+                    pop.type="dh",
+                    id = "GENOTYPE",
+                    chr=c("1A",
+                          "1B",
+                          "1D",
+                          "2A",
+                          "2B",
+                          "2D",
+                          "3A",
+                          "3B",
+                          "3D",
+                          "4A",
+                          "4B",
+                          "4D",
+                          "5A",
+                          "5B",
+                          "5D",
+                          "6A",
+                          "6B",
+                          "6D",
+                          "7A",
+                          "7B",
+                          "7D"),
+                    anchor = TRUE,
+                    detectBadData = TRUE,
+                    bychr = TRUE,
+                    miss.thresh = .15,
+                    mvest.bc = FALSE)
+
+#jitter map to improve marker distance
+cross_file<-jittermap(cross_file)
+summary(cross_file)
+names(cross_file$geno)
+
+#remove small linkage groups of a specific length
+marker_count<-c() #set up list for chromosome lengths
+
+for (i in cross_file$geno){
+  marker_count <- c(marker_count, length(i$map))
+}
+
+#create data frame with number of markers per linkage group
+marker_count<-data.frame(Chr = names(cross_file$geno), 
+                         n = marker_count) %>%
+  filter(marker_count>6 &
+           Chr!='1A.2' &
+           Chr!='6A.2')
+
+#subset the map with the linkage groups that pass the filter
+cross_file<-subset(cross_file, chr = marker_count$Chr)
+cross_file<-jittermap(cross_file) 
+
+#rename linkage groups
+names(cross_file$geno)<-c("1A", 
+                          "1B", 
+                          "1D", 
+                          "2A", 
+                          "2B", 
+                          "2D", 
+                          "3A", 
+                          "3B", 
+                          "3D", 
+                          "4A", 
+                          "4B", 
+                          "4D",
+                          "5A", 
+                          "5B", 
+                          "5D",
+                          "6A", 
+                          "6B", 
+                          "6D", 
+                          "7A", 
+                          "7B", 
+                          "7D")
+
+#remove junk
+remove(marker_count)
+
+#check map metrics
+names(cross_file$pheno)
+names(cross_file)
+names(cross_file$geno)
+
+nphe(cross_file)
+nind(cross_file)
+nchr(cross_file)
+
+summary(cross_file)
+
+#plot images of map
+plotMap(cross_file, horizontal = FALSE, shift = FALSE, main="NC13-20076 Double Haploid Linkage Map")
+geno.image(cross_file, main = "")
+
+# write function to look at cM vs BP position
+compare_bp_to_cm <- function(x){
+  # Pull marker names
+  mn<-markernames(x)
+  
+  # find those markers positions
+  pos<-find.markerpos(x,mn)
+  
+  # Get the marker name in the dataframe
+  pos<-rownames_to_column(pos,var="BP_Location")
+  
+  # separate those markers
+  pos<-pos %>% separate(BP_Location, into = c("a","b"), sep = "_")
+  
+  # rename columns
+  colnames(pos)<-c("trash","BP","Chr","cM")
+  
+  # reorder columns
+  pos<-pos %>% select(Chr, BP, cM)
+  
+  # bind together the marker names and position
+  pos<-cbind(mn,pos)
+  
+  # Rename columns
+  colnames(pos)<-c("Markers", "Chr", "BP", "cM")
+  
+  # Make sure those last two columns are numeric
+  pos[,3:4]<-lapply(pos[,3:4], as.numeric)
+  
+  # Return position dataframe
+  return(pos)
+}
+
+# make object
+pos <- compare_bp_to_cm(cross_file)
+
+# Innital plot
+ggplot(data = pos, aes(x=cM, y=BP/1000000))+
+  geom_point()+
+  facet_wrap(~Chr,
+             ncol = 3,
+             scales = "fixed")+
+  coord_cartesian(ylim = c(0, 800),
+                  xlim = c(0, 250))+
+  labs(title = "Centimorgan Position vs. Megabase Pair",
+       x = "Centimorgan (cM) Position",
+       y = "Megabase Pair (Mbp) Position")
+
+# for each linkage group
+for (i in names(cross_file$geno)){
+  # subset the total data
+  q<-pos %>% filter(Chr==i)
+  
+  # if the first position is greater than the last position 
+  if (q[1,3]>q[(nrow(q)),3]){
+    # flip the chromosome 
+    cross_file<-flip.order(cross_file, i)
+    
+    # print a message
+    print(paste("Chromsome",i,"has been flipped"))
+    
+    # remove the temp object
+    remove(q)
+  }else{
+    # print a message
+    print(paste("Chromsome",i,"is in correct order"))
+    
+    #remove the temp object
+    remove(q)
+  }
+}
+
+# make object
+pos <- compare_bp_to_cm(cross_file)
+
+# plot again
+ggplot(data = pos, aes(x=cM, y=BP/1000000))+
+  geom_point()+
+  facet_wrap(~Chr,
+             ncol = 3,
+             scales = "fixed")+
+  coord_cartesian(ylim = c(0, 800),
+                  xlim = c(0, 250))+
+  labs(title = "Centimorgan Position vs. Megabase Pair",
+       x = "Centimorgan (cM) Position",
+       y = "Megabase Pair (Mbp) Position")
+
+# Save the plot
+ggsave(plot = last_plot(),
+       filename = "cM_vs_bp_comparison.jpg",
+       units = "in",
+       width = 8,
+       height = 12,
+       dpi = 320)
+
+#remove
+remove(pos)
+
+# # find potential selfs
+# potential_selfs <- pull.geno(cross_file)
+# rownames(potential_selfs) <- cross_file$pheno$GENOTYPE
+# potential_selfs <- t(potential_selfs)
+# 
+# # make a function to get counts
+# count_values <- function(column) {
+#   return(c(count_A = sum(column == 1, na.rm = TRUE),
+#            count_B = sum(column == 2, na.rm = TRUE),
+#            count_NA = sum(is.na(column))))
+# }
+# 
+# # Make an object to bind on 
+# check <- c()
+# 
+# # Bind in 
+# for(i in 1:ncol(potential_selfs)){
+#   
+#   temp1<-data.frame(GENOTYPE=colnames(potential_selfs)[i],
+#                     t(count_values(potential_selfs[,i])))
+#   temp1$x2<-c(chisq.test(x = temp1[,2:3], p = rep(0.5, 2))$statistic)
+#   temp1$p.value<-c(chisq.test(x = temp1[,2:3], p = rep(0.5, 2))$p.value)
+#   check <-rbind(check, temp1)
+#   remove(temp1)
+#   
+# }
+# 
+# # List of potential selfs
+# potential_selfs <- check %>% filter(p.value<=1e-80)
+# 
+# # write selfs
+# write.csv(potential_selfs,
+#           "list_of_potential_selfs.csv",
+#           row.names = FALSE)
+
+# write cross
+write.cross(cross_file,
+            format = "csv",
+            filestem = "rqtl_input_file_final")
+```
+
+# QTL analysis without covariates - PH, HD, VR, FDK, DON
+
+```{r}
+#calculate marker probabilities
+cross_file<-calc.genoprob(cross_file, 
+                          step=2.0, 
+                          off.end=0.0, 
+                          error.prob=1.0e-4, 
+                          map.function="kosambi",
+                          stepwidth="fixed")
+
+#calculate marker probabilities for a simulated genotype
+cross_file<-sim.geno(cross_file, 
+                     n.draws = 128, 
+                     step = 2, 
+                     off.end = 0.0, 
+                     error.prob=1.0e-4, 
+                     map.function="kosambi", 
+                     stepwidth="fixed")
+
+#set the number of permutations
+nperms=1000
+
+#pull traits
+traits<-names(cross_file$pheno)[-1]
+
+#make results vector
+results<-list()
+
+#run initial interval mapping and pull out QTL
+for (i in traits){
+  
+  #announce 
+  print(paste("------------ Interval Mapping of", i,"------------"))
+  
+  #perform IM with multiple imputation method
+  print("Interval mapping...")
+  scans<-scanone(cross_file, 
+                 pheno.col = i,
+                 addcovar = NULL,
+                 model = "normal", 
+                 method = "hk") 
+  print("Done")
+  
+  #perform IM permutations mapping to define significance threshold
+  print("Permutational interval mapping...")
+  perms<-scanone(cross_file, 
+                 pheno.col = i, 
+                 addcovar = NULL,
+                 model = "normal", 
+                 method = "hk", 
+                 n.perm = nperms, 
+                 n.cluster = detectCores()-1) #set threshold
+  print("Done")
+  
+  #plot QTL Scan
+  print("Plotting...")
+  threshold<-summary(perms, alpha=0.05)
+  plot(scans,main=paste("IM for", i)) 
+  abline(h=threshold, lty="dotted", lwd=1, col="#cc0000")
+  legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+  
+  #print plot
+  jpeg(paste("Scan_IM_", i, ".jpg", sep = ""),
+       width = 11,
+       height = 4,
+       units = "in",
+       res = 320)
+  threshold<-summary(perms, alpha=0.05)
+  plot(scans,main=paste("IM for", i)) 
+  abline(h=threshold, lty="dotted", lwd=1, col="#cc0000")
+  legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+  dev.off()
+  print("Done")
+  
+  
+  #show the peak markers for QTL
+  print("Defining QTL...")
+  qtl<-summary(scans, perm=perms, 
+               lodcolum=1, alpha=0.05)
+  
+  #place outputs in lists
+  results$IM$scan[[i]]<-scans #place the scan a the list
+  results$IM$perms[[i]]<-perms #place the permutations a the list
+  results$IM$threshold[[i]]<-threshold #place the thresholds a the list
+  
+  if(nrow(qtl)==0){
+    # Print out
+    print("No QTL identified in initial scan... Moving onto next trait!")
+    next
+  }
+  
+  #rename QTL to identify which scan they came from
+  qtl$name=paste("IM_", qtl$chr,"-pos-",qtl$pos,sep="")
+  print("Done")
+  
+  #Define the QTL locations and effects
+  print("Drawing QTL...")
+  colnames(scans)<-c("chr","pos","lod")
+  
+  #set up objects for defining QTL
+  c<-qtl[,1] #define the chromosomes where QTL are found
+  p<-qtl[,2] #define the positions of the QTL
+  a<-subset(cross_file, chr=c) #subset the chromosomes where QTL are found
+  
+  #Make new cross with genome subset
+  a<-sim.geno(a, 
+              n.draws = 128, 
+              step = 2, 
+              off.end = 0.0, 
+              error.prob=1.0e-4, 
+              map.function="kosambi", 
+              stepwidth="fixed")
+  
+  #make a QTL object from that subset
+  madeqtl<-makeqtl(a, 
+                   c, 
+                   p, 
+                   qtl.name = qtl[,4], 
+                   what = c("prob")) 
+
+  #place that QTL object in a list
+  results$IM$qtl[[i]]<-madeqtl 
+  print("Done")
+  
+  #announce
+  print("Running drop-one QTL analysis to check significance...")
+  
+  #test the significance of those QTL using drop one analysis
+  qtlfit<-fitqtl(cross_file, 
+                 qtl=results$IM$qtl[[i]], 
+                 pheno.col = i,
+                 model="normal", 
+                 method = "hk") 
+  
+  #remove insignificant qtl
+  if(!is.null(qtlfit$result.drop)){
+    
+    a<-as.data.frame(qtlfit$result.drop)
+    a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
+    a<-data.frame(name=rownames(a[a$sig==0,]))
+    madeqtl<-dropfromqtl(madeqtl,
+                         qtl.name = a$name)
+    
+    results$IM$qtl[[i]]<-madeqtl 
+    
+    remove(a,c,p,scans,perms,threshold)
+    
+  }else{
+    
+    remove(a,c,p,scans,perms,threshold)
+    
+  }
+  
+  #set vectors outside the loop
+  j=1
+  
+  #make initial check object
+  qtl_check<-results$IM$qtl[[i]]
+  
+  #run MQM until no significant peaks!
+  repeat{
+    
+    #announce  
+    print(paste("-------- Performing Additional QTL Scan for Trait", i,"--------"))
+    
+    mqm<-addqtl(cross = cross_file, 
+                pheno.col = i, 
+                qtl=qtl_check, 
+                covar = NULL, 
+                method = "hk")
+    results[[paste("MQM", j, sep="")]]$scan[[i]]<-mqm
+    
+    #plot QTL Scan
+    print("Plotting...")
+    plot(mqm,main=paste("MQM", j, "for", i)) 
+    abline(h=results$IM$threshold[[i]], lty="dotted", lwd=1, col="#cc0000")
+    legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+    print("Done")
+    
+    #write out picture to directory
+    jpeg(paste("Scan_",paste("MQM", j, sep=""),"_", i, ".jpg", sep = ""),
+     width = 11,
+     height = 4,
+     units = "in",
+     res = 320)
+    plot(mqm,main=paste("MQM", j, "for", i)) 
+    abline(h=results$IM$threshold[[i]], lty="dotted", lwd=1, col="#cc0000")
+    legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+    dev.off()
+
+    #make a qtl object
+    qtl<-summary(mqm, 
+                 perm=results$IM$perms[[i]], 
+                 lodcolum=1, 
+                 alpha=0.05)
+  
+    if(nrow(qtl)==0){
+      
+      results[[paste("MQM", j, sep="")]]$qtl[[i]]<-NULL
+      print(paste("There were no new QTL identified for", i, "aborting loop"))
+      break
+      
+    }else{
+      
+      #rename QTL to identify which scan they came from
+      qtl$name=paste(paste("MQM", j, "_", sep=""), qtl$chr,"-pos-",qtl$pos,sep="")
+       
+      #Defining QTL
+      print("Drawing new QTL")
+      c<-qtl[,1] #define the chromosomes where QTL are found
+      p<-qtl[,2] #define the positions of the QTL
+      a<-subset(cross_file, chr=c) #subset the chromosomes where QTL are found
+       
+      #simulate the genome for that subset
+      a<-sim.geno(a, 
+                  n.draws = 128, 
+                  step = 2, 
+                  off.end = 0.0, 
+                  error.prob=1.0e-4, 
+                  map.function="kosambi", 
+                  stepwidth="fixed") 
+       
+      #make a QTL object from that subset
+      madeqtl<-makeqtl(a, 
+                       c, 
+                       p, 
+                       qtl.name = qtl[,4], 
+                       what = c("prob")) 
+   
+      #place that QTL object in a list
+      results[[paste("MQM", j, sep="")]]$qtl[[i]]<-madeqtl 
+      print("Done")
+      
+      #announce 
+      print("Running drop-one QTL analysis...")
+       
+      #test the significance of those QTL using dropone analysis
+      qtlfit<-fitqtl(cross_file, 
+                     qtl=madeqtl, 
+                     pheno.col = i, 
+                     get.ests = T,
+                     model="normal", 
+                     method = "hk") 
+      
+      if(!is.null(qtlfit$result.drop)){
+      
+        print("Checking drop-one analysis for significance")
+        a<-as.data.frame(qtlfit$result.drop)
+        a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
+        a<-data.frame(name=rownames(a[a$sig==0,]))
+        a<-tidyr::separate(data = a, 
+                           col = "name",
+                           into = c("chr", "trash", "pos"),
+                           sep = "-")
+        a$pos<-as.numeric(a$pos)
+        a$chr<-gsub(paste("MQM", j, "_", sep=""),"",a$chr)
+        madeqtl<-dropfromqtl(madeqtl,
+                             chr = a$chr,
+                             pos = a$pos)
+        
+        madeqtl<-addtoqtl(cross_file,
+                          qtl = madeqtl,
+                          chr = qtl_check$chr,
+                          pos = qtl_check$pos,
+                          qtl.name = qtl_check$name)
+              
+        
+        results[[paste("MQM", j, sep="")]]$qtl[[i]]<-madeqtl 
+        
+        remove(a,c,p)
+        
+        
+        }else{
+          
+          print(paste("There was only one new QTL identified for ",
+                      i,
+                      " in ", 
+                      paste("MQM", j, sep=""),
+                      "... Checking significance!",
+                      sep = ""))
+          
+          if(qtlfit$result.full[1,6]<0.05){
+      
+            print("New QTL is significant, placing in total model!")
+            
+            madeqtl<-addtoqtl(cross_file,
+                              qtl = madeqtl,
+                              chr = qtl_check$chr,
+                              pos = qtl_check$pos,
+                              qtl.name = qtl_check$name)
+            
+            results[[paste("MQM", j, sep="")]]$qtl[[i]]<-madeqtl 
+      
+            }else{
+    
+              results[[paste("MQM", j, sep="")]]$qtl[[i]]<-NULL 
+              print(paste("There were no new QTL identified for", i, "aborting loop!"))
+              break
+      
+              }
+          }
+      }
+      
+    
+    qtl_check<-results[[paste("MQM", j, sep="")]]$qtl[[i]]
+    
+    j=j+1
+    
+  }
+  
+  #check
+  if(j-1==0){
+    
+    #pull and make final qtl object
+    finalqtl<-results$IM$qtl[[i]]
+    
+  }else{
+  
+    #pull and make final qtl object
+    finalqtl<-results[[paste("MQM", j-1, sep="")]]$qtl[[i]]
+      
+  }
+  
+  #check for significance
+  qtlfit<-fitqtl(cross_file, 
+                 qtl=finalqtl, 
+                 pheno.col = i, 
+                 get.ests = T,
+                 model="normal", 
+                 method = "hk") 
+  
+  #rename the qtl
+  a<-finalqtl
+  a<-data.frame(summary(a))
+  a<-tidyr::separate(a, col = "name", into=c("model", "trash"), sep = "_")
+  a$name<-paste(a$model, "_", a$chr, "-pos-", a$pos, sep = "")
+  finalqtl$name=a$name
+  remove(a)
+  
+  #print
+  print("Filtering insignificant markers...")
+  
+  if(!is.null(qtlfit$result.drop)){
+    
+    a<-as.data.frame(qtlfit$result.drop)
+    a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
+    a<-data.frame(name=rownames(a[a$sig==0,]))
+    finalqtl<-dropfromqtl(finalqtl,
+                          qtl.name = a$name)
+    
+    results$final$qtl_unrefine[[i]]<-finalqtl 
+    
+    remove(a, finalqtl)
+    
+  }else{
+    
+    results$final$qtl_unrefine[[i]]<-finalqtl
+    remove(finalqtl)
+    
+  }
+   
+  #print
+  print("Refining QTL position...")
+  
+  #refine
+  results$final$qtl_refine[[i]]<-refineqtl(cross = cross_file, 
+                                           pheno.col = i, 
+                                           qtl = results$final$qtl_unrefine[[i]], 
+                                           verbose = FALSE,
+                                           method = "hk")
+  #rename the qtl
+  a<-results$final$qtl_refine[[i]]
+  a<-data.frame(summary(a))
+  a<-tidyr::separate(a, col = "name", into=c("model", "trash"), sep = "_")
+  a$name<-paste(a$model, "_", a$chr, "-pos-", a$pos, sep = "")
+  results$final$qtl_refine[[i]]$name=a$name
+  remove(a)
+  
+  #check for significance
+  qtlfit<-fitqtl(cross_file, 
+                 qtl=results$final$qtl_refine[[i]], 
+                 pheno.col = i, 
+                 get.ests = T,
+                 model="normal", 
+                 method = "hk") 
+  
+  finalqtl<-results$final$qtl_refine[[i]]
+  
+  #print
+  print("Filtering insignificant markers...")
+  
+  if(!is.null(qtlfit$result.drop)){
+    
+    a<-as.data.frame(qtlfit$result.drop)
+    a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
+    a<-data.frame(name=rownames(a[a$sig==0,]))
+
+    finalqtl<-dropfromqtl(finalqtl,
+                          qtl.name = a$name)
+    
+    results$final$qtl_refine_filt[[i]]<-finalqtl 
+    
+    remove(a, finalqtl)
+    
+  }else{
+    
+    remove(a, finalqtl)
+    
+  }
+  
+  droplodint<-c()
+  
+  #create QTL 1.5 drop LOD intervals
+  for(z in results$final$qtl_refine_filt[[i]]$name){
+    
+    a<-data.frame(name=z)
+    a<-tidyr::separate(data = a,
+                       col = "name",
+                       into = c("scan", "other"),
+                       sep = "_",
+                       remove = FALSE)
+    a<-tidyr::separate(data = a,
+                       col = "other",
+                       into = c("chr", "trash", "pos"),
+                       sep = "-",
+                       remove = TRUE)
+    b<-results[[a$scan]]$scan[[i]]
+    c<-find.pseudomarker(cross = cross_file,
+                         chr = a$chr,
+                         pos = as.numeric(a$pos))
+    d<-lodint(results = b,
+              chr = a$chr,
+              qtl.index = c,
+              drop = 1.5,
+              lodcolumn = 1,
+              expandtomarkers = TRUE)
+    
+    d<-data.frame(name=z, 
+                  trait=i,
+                  chr=unique(d$chr),
+                  start_marker=rownames(d)[1],
+                  start=d[1,2], 
+                  mid_marker=rownames(d)[2],
+                  mid_pos=d[2,2],
+                  stop_marker=rownames(d)[3],
+                  stop=d[3,2])
+    
+    droplodint<-rbind(droplodint, d)
+    
+    remove(a,b,c,d)
+  }
+  
+  #place in results
+  results$final$qtl_support_intervals[[i]]<-droplodint
+  
+  #remove
+  remove(droplodint)
+  
+}
+
+#rename results
+results_HD_PH_VR_FDK_DON<-results
+```
+
+# Pull HD and PH Marker Covariates
+
+```{r}
+covars<-rbind(results_HD_PH_VR_FDK_DON$final$qtl_support_intervals$HD_ME,
+              results_HD_PH_VR_FDK_DON$final$qtl_support_intervals$PH_ME)
+
+covar_markers<-data.frame(GENOTYPE=cross_file$pheno$GENOTYPE)
+
+for(i in 1:nrow(covars)){
+  
+  a<-covars[i,]
+  
+  b<-fill.geno(cross = cross_file,
+               method = c("no_dbl_XO"),
+               map.function = "kosambi")
+  
+  b<-pull.geno(cross = b,
+               chr = a$chr)
+  
+  a<-find.marker(cross = cross_file,
+                 chr = a$chr,
+                 pos = a$mid_pos)
+  
+  b<-as.data.frame(b[,a])
+  
+  colnames(b)=a
+  
+  covar_markers<-cbind(covar_markers, b)
+  
+  remove(a,b)
+  
+}
+```
+
+# Visualize HD and PH QTL
+
+```{r}
+#make object for ggplot
+traits<-names(cross_file$pheno)[c(grep("HD", names(cross_file$pheno)),grep("PH", names(cross_file$pheno)))]
+
+#make object
+hd_ph_ggplot<-c()
+
+for(i in traits){
+  
+  a<-results_HD_PH_VR_FDK_DON$final$qtl_support_intervals[[i]]
+  hd_ph_ggplot<-rbind(hd_ph_ggplot, a)
+  remove(a)
+  
+}
+
+d<-results_HD_PH_VR_FDK_DON$IM$scan$HD_ME %>%
+  filter(chr %in% hd_ph_ggplot$chr)
+
+hd_ph_ggplot<-hd_ph_ggplot %>% 
+  mutate(chr=paste(chr, trait, sep = "_"))
+
+
+
+library(ggrepel)
+library(patchwork)
+
+color_palette <- c(
+  "HD_ME" = "#0000FF",        # Blue
+  "HD_RAL19" = "#2F4F4F",     # DarkSlateGray
+  "HD_RAL20" = "#00FFFF",     # Cyan
+  "HD_KIN20" = "#1E90FF",     # DodgerBlue
+  "HD_WAR20" = "#5F9EA0",     # CadetBlue
+  "PH_ME" = "#EE82EE",        # Violet
+  "PH_RAL20" = "#BA55D3",     # MediumOrchid
+  "PH_KIN20" = "#9932CC"      # DarkOrchid
+)
+
+finalplot<-list()
+j=1
+
+for(i in unique(d$chr)){
+
+  a<-hd_ph_ggplot[grep(i, hd_ph_ggplot$chr),]
+  a$trait<-factor(a$trait, levels = c("HD_ME", 
+                                      "HD_RAL19",
+                                      "HD_RAL20",
+                                      "HD_KIN20",
+                                      "HD_WAR20",
+                                      "PH_ME",
+                                      "PH_RAL20",
+                                      "PH_KIN20"))
+  b<-d[d$chr==i,]
+  b<-b[-grep("loc", rownames(b)),]
+  b<-rownames_to_column(b, var = "marker")
+  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
+  
+  if(j==1){
+  
+    c<-ggplot(data=b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      theme_classic()+
+      theme(axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank())+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+      
+    if(length(Label)>0){
+      c<-c+
+        geom_point(data = d[rownames(d) %in% Label,], aes(x=chr, y=pos), color="green", size=4, shape=17)
+    }
+  
+  }else{
+    
+    c<-ggplot(data = b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      theme_classic()+
+      theme(axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank(),
+            #axis.line.y = element_blank(),
+            axis.title.y = element_blank(),
+            #axis.ticks.y = element_blank(),
+            #axis.text.y = element_blank()
+            )+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+      
+    if(length(Label)>0){
+      c<-c+
+        geom_point(data = d[rownames(d) %in% Label,], aes(x=chr, y=pos), color="green", size=4, shape=17)
+    }
+  
+    
+  }
+  finalplot[[paste("chr",i,sep="_")]]<-c
+  remove(a,b,c)
+  j=j+1
+    
+}
+
+a<-(finalplot$chr_1B+finalplot$chr_2A+finalplot$chr_3A+
+    finalplot$chr_4A+finalplot$chr_5A+finalplot$chr_6A+
+    finalplot$chr_7A+finalplot$chr_7B+finalplot$chr_7D)+
+    plot_layout(guides = "collect", nrow = 1)+
+    plot_annotation(title = "1.5-LOD Support Intervals",
+                    subtitle = "Plant Height (PH) and Heading Date (HD)")
+
+a
+ggsave(plot = a,
+       filename = "support_intervals_hd_and_ph.jpg",
+       width = 14,
+       height = 8,
+       dpi = 320,
+       units = "in")
+```
+
+# Visualize HD and PH QTL for ME only
+
+```{r}
+#make object for ggplot
+traits<-c("HD_ME", "PH_ME")
+
+#make object
+hd_ph_ggplot<-c()
+
+for(i in traits){
+  
+  a<-results_HD_PH_VR_FDK_DON$final$qtl_support_intervals[[i]]
+  hd_ph_ggplot<-rbind(hd_ph_ggplot, a)
+  remove(a)
+  
+}
+
+d<-results_HD_PH_VR_FDK_DON$IM$scan$HD_ME %>%
+  filter(chr %in% hd_ph_ggplot$chr)
+
+hd_ph_ggplot<-hd_ph_ggplot %>% 
+  mutate(chr=paste(chr, trait, sep = "_")) %>%
+  mutate(trait=ifelse(trait=="HD_ME", "Heading Date",
+                      ifelse(trait=="PH_ME", "Plant Height", "ERROR")))
+
+
+
+library(ggrepel)
+library(patchwork)
+
+color_palette <- c(
+  "Heading Date" = "#0000FF",        # Blue
+  "Plant Height" = "#EE82EE"         # Violet
+)
+
+finalplot<-list()
+j=1
+
+for(i in unique(d$chr)){
+
+  a<-hd_ph_ggplot[grep(i, hd_ph_ggplot$chr),]
+  a$trait<-factor(a$trait, levels = c("Heading Date", 
+                                      "Plant Height"))
+  b<-d[d$chr==i,]
+  b<-b[-grep("loc", rownames(b)),]
+  b<-rownames_to_column(b, var = "marker")
+  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
+  
+  if(j==1){
+  
+    c<-ggplot(data=b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      theme_classic()+
+      theme(axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank())+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+      
+    if(length(Label)>0){
+      c<-c+
+        geom_point(data = d[rownames(d) %in% Label,], aes(x=chr, y=pos), color="green", size=4, shape=17)
+    }
+  
+  }else{
+    
+    c<-ggplot(data = b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      theme_classic()+
+      theme(axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank(),
+            #axis.line.y = element_blank(),
+            axis.title.y = element_blank(),
+            #axis.ticks.y = element_blank(),
+            #axis.text.y = element_blank()
+            )+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+      
+    if(length(Label)>0){
+      c<-c+
+        geom_point(data = d[rownames(d) %in% Label,], aes(x=chr, y=pos), color="green", size=4, shape=17)
+    }
+  
+    
+  }
+  finalplot[[paste("chr",i,sep="_")]]<-c
+  remove(a,b,c)
+  j=j+1
+    
+}
+
+a<-(finalplot$chr_4A+finalplot$chr_5A+
+    finalplot$chr_6A+finalplot$chr_6D+finalplot$chr_7B)+
+  plot_layout(guides = "collect", nrow = 1)+
+  plot_annotation(title = "1.5-LOD Support Intervals",
+                  subtitle = "Plant Height (PH) and Heading Date (HD)")
+
+a
+ggsave(plot = a,
+       filename = "support_intervals_hd_and_ph_ME_only.jpg",
+       width = 14,
+       height = 8,
+       dpi = 320,
+       units = "in")
+```
+
+# Visualize HD, PH, VR, FDK, and DON
+
+```{r}
+#make object for ggplot
+traits<-names(cross_file$pheno)[-1]
+
+#make object
+hd_ph_vr_fdk_don_ggplot<-c()
+
+for(i in traits){
+  
+  a<-results_HD_PH_VR_FDK_DON$final$qtl_support_intervals[[i]]
+  hd_ph_vr_fdk_don_ggplot<-rbind(hd_ph_vr_fdk_don_ggplot, a)
+  remove(a)
+  
+}
+
+d<-results_HD_PH_VR_FDK_DON$IM$scan$HD_ME %>%
+  filter(chr %in% hd_ph_vr_fdk_don_ggplot$chr)
+
+hd_ph_vr_fdk_don_ggplot<-hd_ph_vr_fdk_don_ggplot %>% 
+  mutate(chr=paste(chr, trait, sep = "_"))
+
+
+
+library(ggrepel)
+library(patchwork)
+
+color_palette <- c(
+  "HD_ME" = "#0000FF",        # Blue
+  "HD_RAL19" = "#2F4F4F",     # DarkSlateGray
+  "HD_RAL20" = "#00FFFF",     # Cyan
+  "HD_KIN20" = "#1E90FF",     # DodgerBlue
+  "HD_WAR20" = "#5F9EA0",     # CadetBlue
+  "PH_ME" = "#EE82EE",        # Violet
+  "PH_RAL20" = "#BA55D3",     # MediumOrchid
+  "PH_KIN20" = "#9932CC",      # DarkOrchid
+  "VR_ME" = "#FF0000",      # Red
+  "VR_KIN19" = "#8B0000",   # DarkRed
+  "VR_KIN20" = "#B22280",   # Firebrick
+  "VR_RAL19" = "#A0522D",   # Brown
+  "VR_RAL20" = "#FF4500",   # OrangeRed
+  "VR_WAR20" = "#FF6347",   # Tomato
+  "FDK_ME" = "#FFFF00",     # Yellow
+  "FDK_KIN19" = "#B8860B",  # DarkGoldenrod
+  "FDK_KIN20" = "#FFD700",  # Gold
+  "FDK_RAL19" = "#DAA520",  # Goldenrod
+  "FDK_RAL20" = "#F0E68C",  # Khaki
+  "FDK_WAR19" = "#EEE8AA",  # PaleGoldenrod
+  "FDK_WAR20" = "#8B864E",  # Khaki4
+  "DON_ME" = "#00FF00",     # DarkGreen
+  "DON_KIN19" = "#66CD00",  # Chartreuse3
+  "DON_KIN20" = "#556B2F",  # DarkOliveGreen
+  "DON_RAL19" = "#8FBC8F",  # DarkSeaGreen
+  "DON_RAL20" = "#6B8E23",  # OliveDrab
+  "DON_WAR19" = "#98FB98",  # PaleGreen
+  "DON_WAR20" = "#00FF7F"   # SpringGreen1
+)
+
+finalplot<-list()
+j=1
+
+for(i in unique(d$chr)){
+
+  a<-hd_ph_vr_fdk_don_ggplot[grep(i, hd_ph_vr_fdk_don_ggplot$chr),]
+  a$trait<-factor(a$trait, levels = c("HD_ME", 
+                                      "HD_RAL19",
+                                      "HD_RAL20",
+                                      "HD_KIN20",
+                                      "HD_WAR20",
+                                      "PH_ME",
+                                      "PH_RAL20",
+                                      "PH_KIN20",
+                                      "VR_ME", 
+                                      "VR_KIN19", 
+                                      "VR_KIN20", 
+                                      "VR_RAL19", 
+                                      "VR_RAL20", 
+                                      "VR_WAR20", 
+                                      "FDK_ME", 
+                                      "FDK_KIN19", 
+                                      "FDK_KIN20", 
+                                      "FDK_RAL19", 
+                                      "FDK_RAL20", 
+                                      "FDK_WAR19", 
+                                      "FDK_WAR20", 
+                                      "DON_ME", 
+                                      "DON_KIN19", 
+                                      "DON_KIN20", 
+                                      "DON_RAL19", 
+                                      "DON_RAL20", 
+                                      "DON_WAR19", 
+                                      "DON_WAR20"))
+  b<-d[d$chr==i,]
+  b<-b[-grep("loc", rownames(b)),]
+  b<-rownames_to_column(b, var = "marker")
+  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
+  
+  if(j==1){
+  
+    c<-ggplot(data=b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      theme_classic()+
+      theme(#legend.position = ifelse(length(unique(a$trait))!=27, "none", "right"),
+            axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank())+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+  
+  }else{
+    
+    c<-ggplot(data = b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      theme_classic()+
+      theme(#legend.position = ifelse(length(unique(a$trait))!=27, "none", "right"),
+            axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank(),
+            #axis.line.y = element_blank(),
+            axis.title.y = element_blank(),
+            #axis.ticks.y = element_blank(),
+            #axis.text.y = element_blank()
+            )+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+  
+    
+  }
+  finalplot[[paste("chr",i,sep="_")]]<-c
+  remove(a,b,c)
+  j=j+1
+    
+}
+
+a<-(finalplot$chr_1A+
+      finalplot$chr_1B+
+      finalplot$chr_2A+
+      finalplot$chr_2B+
+      finalplot$chr_2D+
+      finalplot$chr_3A+
+      finalplot$chr_3B+
+      finalplot$chr_3D+
+      finalplot$chr_4A+
+      finalplot$chr_4B+
+      finalplot$chr_5A+
+      finalplot$chr_5B+
+      finalplot$chr_6A+
+      finalplot$chr_6B+
+      finalplot$chr_6D+
+      finalplot$chr_7A+
+      finalplot$chr_7B+
+      finalplot$chr_7D)+
+    plot_layout(guides = "collect", nrow = 3)+
+    plot_annotation(title = "1.5-LOD Support Intervals",
+                    subtitle = "Plant Height (PH), Heading Date (HD), Visual Rating (VR), Fusarium Damaged Kernels (FDK), and Deoxynivalenol Content (DON)")
+
+a
+ggsave(plot = a,
+       filename = "support_intervals_hd_ph_vr_fdk_don_unadjusted.jpg",
+       width = 20,
+       height = 15,
+       dpi = 320,
+       units = "in")
+```
+
+# Visualize HD, PH, VR, FDK, and DON for ME only
+
+```{r}
+#make object for ggplot
+traits<-c("HD_ME", "PH_ME", "VR_ME", "FDK_ME", "DON_ME")
+
+#make object
+hd_ph_vr_fdk_don_ggplot<-c()
+
+for(i in traits){
+  
+  a<-results_HD_PH_VR_FDK_DON$final$qtl_support_intervals[[i]]
+  hd_ph_vr_fdk_don_ggplot<-rbind(hd_ph_vr_fdk_don_ggplot, a)
+  remove(a)
+  
+}
+
+d<-results_HD_PH_VR_FDK_DON$IM$scan$HD_ME %>%
+  filter(chr %in% hd_ph_vr_fdk_don_ggplot$chr)
+
+hd_ph_vr_fdk_don_ggplot<-hd_ph_vr_fdk_don_ggplot %>% 
+  mutate(chr=paste(chr, trait, sep = "_")) %>%
+  mutate(trait=ifelse(trait=="HD_ME", "Heading Date",
+                      ifelse(trait=="PH_ME", "Plant Height",
+                             ifelse(trait=="VR_ME", "Visual Rating",
+                                    ifelse(trait=="FDK_ME", "Fusarium Damaged Kernels",
+                                           ifelse(trait=="DON_ME", "Deoxynivalenol Content", "ERROR"))))))
+
+
+
+library(ggrepel)
+library(patchwork)
+
+color_palette <- c(
+  "Heading Date" = "#0000FF",        # Blue
+  "Plant Height" = "#EE82EE",        # Violet
+  "Visual Rating" = "#FF0000",               # Red  
+  "Fusarium Damaged Kernels" = "#FFFF00",
+  "Deoxynivalenol Content" = "#00FF00"  
+)
+
+finalplot<-list()
+j=1
+
+for(i in unique(d$chr)){
+
+  a<-hd_ph_vr_fdk_don_ggplot[grep(i, hd_ph_vr_fdk_don_ggplot$chr),]
+  a$trait<-factor(a$trait, levels = c("Heading Date", 
+                                      "Plant Height",  
+                                      "Visual Rating",               
+                                      "Fusarium Damaged Kernels",
+                                      "Deoxynivalenol Content"))
+  b<-d[d$chr==i,]
+  b<-b[-grep("loc", rownames(b)),]
+  b<-rownames_to_column(b, var = "marker")
+  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
+  
+  if(j==1){
+  
+    c<-ggplot(data=b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      theme_classic()+
+      theme(legend.position = ifelse(length(unique(a$trait))!=2, "none", "right"),
+            axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank())+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+  
+  }else{
+    
+    c<-ggplot(data = b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      theme_classic()+
+      theme(legend.position = ifelse(length(unique(a$trait))!=2, "none", "right"),
+            axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank(),
+            #axis.line.y = element_blank(),
+            axis.title.y = element_blank(),
+            #axis.ticks.y = element_blank(),
+            #axis.text.y = element_blank()
+            )+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+  
+  }
+  finalplot[[paste("chr",i,sep="_")]]<-c
+  remove(a,b,c)
+  j=j+1
+    
+}
+
+a<-(finalplot$chr_1A+finalplot$chr_2B+finalplot$chr_4A+
+    finalplot$chr_5A+finalplot$chr_6A+finalplot$chr_7D)+
+  plot_layout(guides = "collect", nrow = 1)+
+  plot_annotation(title = "1.5-LOD Support Intervals",
+                  subtitle = "Plant Height (PH), Heading Date (HD), Visual Rating (VR), Fusarium Damaged Kernels (FDK), and Deoxynivalenol Content (DON)")
+
+a
+ggsave(plot = a,
+       filename = "support_intervals_ph_hd_vr_fdk_don_ME_only_unadjust.jpg",
+       width = 14,
+       height = 8,
+       dpi = 320,
+       units = "in")
+```
+
+# Percent variance in ME
+
+```{r}
+traits<-c("HD_ME", "PH_ME")
+
+hd_ph_ggplot<-c()
+
+for(i in traits){
+  
+  a<-results_HD_PH_VR_FDK_DON$final$qtl_support_intervals[[i]]
+  hd_ph_ggplot<-rbind(hd_ph_ggplot, a)
+  remove(a)
+  
+}
+
+qtl_info<-c()
+
+for(i in c("2A", "4A", "5A", "6A", "7B", "7D")){
+
+  a<-hd_ph_ggplot[hd_ph_ggplot$chr==i,]
+  
+  hd_effects<-fitqtl(cross = cross_file,
+                     pheno.col = "HD_ME",
+                     qtl = results_HD_PH_VR_FDK_DON$final$qtl_refine_filt$HD_ME,
+                     get.ests = TRUE,
+                     model="normal", 
+                     method = "hk")
+      
+  ph_effects<-fitqtl(cross = cross_file,
+                     pheno.col = "PH_ME",
+                     qtl = results_HD_PH_VR_FDK_DON$final$qtl_refine_filt$PH_ME,
+                     get.ests = TRUE,
+                     model="normal", 
+                     method = "hk")
+  
+  b<-as.data.frame(hd_effects$result.drop)[rownames(hd_effects$result.drop) %in% a$name,]
+  b<-rownames_to_column(b, var = "name")
+  b<-b %>% left_join(a, by="name") %>% filter(trait=="HD_ME")
+  
+  c<-as.data.frame(ph_effects$result.drop)[rownames(ph_effects$result.drop) %in% a$name,]
+  c<-rownames_to_column(c, var = "name")
+  c<-c %>% left_join(a, by="name") %>% filter(trait=="PH_ME")
+  
+  e<-as.data.frame(summary(hd_effects)$est)[rownames(summary(hd_effects)$est) %in% a$name,]
+  e<-rownames_to_column(e, var = "name")
+  b<-b %>% left_join(e, by="name") %>% filter(trait=="HD_ME")
+  
+  f<-as.data.frame(summary(ph_effects)$est)[rownames(summary(ph_effects)$est) %in% a$name,]
+  f<-rownames_to_column(f, var = "name")
+  c<-c %>% left_join(f, by="name") %>% filter(trait=="PH_ME")
+  
+  h<-rbind(b,c)
+  
+  qtl_info<-rbind(qtl_info, h)
+
+  remove(a,b,c,e,f,h,hd_effects,ph_effects)
+}
+
+qtl_info<-qtl_info %>%
+  arrange(chr, mid_pos, trait) %>%
+  separate(start_marker, into=c("junk1", "start_bp"), sep = "_", remove = FALSE) %>%
+  separate(stop_marker, into=c("junk2", "stop_bp"), sep = "_", remove = FALSE) %>%
+  mutate(`Proximal Mbp Position`= round(as.numeric(start_bp)/1000000, 2),
+         `Distal Mbp Position` = round(as.numeric(stop_bp)/1000000, 2),
+         newname = ifelse(trait=="PH_ME", paste("QPht.nc-", chr, sep = ""), paste("QHd.nc-", chr, sep = "")),
+         `%var`=`%var`/100) %>%
+  select(newname, 
+         trait,
+         chr,
+         LOD,
+         start_marker, 
+         start, 
+         `Proximal Mbp Position`,
+         stop_marker, 
+         stop, 
+         `Distal Mbp Position`,
+         est, 
+         SE, 
+         `%var`) %>%
+  rename(QTL=newname,
+         Trait=trait,
+         Chromosome=chr,
+         LOD=LOD,
+         `Proximal Flanking Marker`=start_marker,
+         `Proximal cM Position`=start,
+         `Distal Flanking Marker`=stop_marker,
+         `Distal cM Position`= stop,
+         `Estimated Effect`=est,
+         `Standard Error`=SE,
+         `Percent Variance`=`%var`)
+
+write.csv(qtl_info,
+          "hd_ph_qtl_information.csv",
+          row.names = FALSE)
+```
+
+# Run Mapping for Disease Traits
+
+```{r}
+#set the number of permutations
+nperms=1000
+
+#### Run disease traits ####
+traits<-names(cross_file$pheno)[c(grep("VR", names(cross_file$pheno)),
+                                  grep("FDK", names(cross_file$pheno)),
+                                  grep("DON", names(cross_file$pheno)))]
+
+#make results vector
+results<-list()
+
+#run initial interval mapping and pull out QTL
+for (i in traits){
+  
+  #announce 
+  print(paste("------------ Interval Mapping of", i,"------------"))
+  
+  #perform IM with multiple imputation method
+  print("Interval mapping...")
+  scans<-scanone(cross_file, 
+                 pheno.col = i,
+                 addcovar = covar_markers[,2:ncol(covar_markers)],
+                 model = "normal", 
+                 method = "hk") 
+  print("Done")
+  
+  #perform IM permutations mapping to define significance threshold
+  print("Permutational interval mapping...")
+  perms<-scanone(cross_file, 
+                 pheno.col = i, 
+                 addcovar = covar_markers[,2:ncol(covar_markers)],
+                 model = "normal", 
+                 method = "hk", 
+                 n.perm = nperms, 
+                 n.cluster = detectCores()-1) #set threshold
+  print("Done")
+  
+  #plot QTL Scan
+  print("Plotting...")
+  threshold<-summary(perms, alpha=0.05)
+  plot(scans,main=paste("IM for", i)) 
+  abline(h=threshold, lty="dotted", lwd=1, col="#cc0000")
+  legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+  
+  #print plot
+  jpeg(paste("Scan_IM_", i, ".jpg", sep = ""),
+       width = 11,
+       height = 4,
+       units = "in",
+       res = 320)
+  threshold<-summary(perms, alpha=0.05)
+  plot(scans,main=paste("IM for", i)) 
+  abline(h=threshold, lty="dotted", lwd=1, col="#cc0000")
+  legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+  dev.off()
+  print("Done")
+  
+  
+  #show the peak markers for QTL
+  print("Defining QTL...")
+  qtl<-summary(scans, perm=perms, 
+               lodcolum=1, alpha=0.05)
+  
+  #place outputs in lists
+  results$IM$scan[[i]]<-scans #place the scan a the list
+  results$IM$perms[[i]]<-perms #place the permutations a the list
+  results$IM$threshold[[i]]<-threshold #place the thresholds a the list
+  
+  if(nrow(qtl)==0){
+    # Print out
+    print("No QTL identified in initial scan... Moving onto next trait!")
+    next
+  }
+  
+  #rename QTL to identify which scan they came from
+  qtl$name=paste("IM_", qtl$chr,"-pos-",qtl$pos,sep="")
+  print("Done")
+  
+  #Define the QTL locations and effects
+  print("Drawing QTL...")
+  colnames(scans)<-c("chr","pos","lod")
+  
+  #set up objects for defining QTL
+  c<-qtl[,1] #define the chromosomes where QTL are found
+  p<-qtl[,2] #define the positions of the QTL
+  a<-subset(cross_file, chr=c) #subset the chromosomes where QTL are found
+  
+  #Make new cross with genome subset
+  a<-sim.geno(a, 
+              n.draws = 128, 
+              step = 2, 
+              off.end = 0.0, 
+              error.prob=1.0e-4, 
+              map.function="kosambi", 
+              stepwidth="fixed")
+  
+  #make a QTL object from that subset
+  madeqtl<-makeqtl(a, 
+                   c, 
+                   p, 
+                   qtl.name = qtl[,4], 
+                   what = c("prob")) 
+
+  #place that QTL object in a list
+  results$IM$qtl[[i]]<-madeqtl 
+  print("Done")
+  
+  #announce
+  print("Running drop-one QTL analysis to check significance...")
+  
+  #test the significance of those QTL using drop one analysis
+  qtlfit<-fitqtl(cross_file, 
+                 qtl=results$IM$qtl[[i]], 
+                 pheno.col = i,
+                 model="normal", 
+                 method = "hk") 
+  
+  #remove insignificant qtl
+  if(!is.null(qtlfit$result.drop)){
+    
+    a<-as.data.frame(qtlfit$result.drop)
+    a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
+    a<-data.frame(name=rownames(a[a$sig==0,]))
+    madeqtl<-dropfromqtl(madeqtl,
+                         qtl.name = a$name)
+    
+    results$IM$qtl[[i]]<-madeqtl 
+    
+    remove(a,c,p,scans,perms,threshold)
+    
+  }else{
+    
+    remove(a,c,p,scans,perms,threshold)
+    
+  }
+  
+  #set vectors outside the loop
+  j=1
+  
+  #make initial check object
+  qtl_check<-results$IM$qtl[[i]]
+  
+  #run MQM until no significant peaks!
+  repeat{
+    
+    #announce  
+    print(paste("-------- Performing Additional QTL Scan for Trait", i,"--------"))
+    
+    mqm<-addqtl(cross = cross_file, 
+                pheno.col = i, 
+                qtl=qtl_check, 
+                covar = covar_markers[,2:ncol(covar_markers)], 
+                method = "hk")
+    results[[paste("MQM", j, sep="")]]$scan[[i]]<-mqm
+    
+    #plot QTL Scan
+    print("Plotting...")
+    plot(mqm,main=paste("MQM", j, "for", i)) 
+    abline(h=results$IM$threshold[[i]], lty="dotted", lwd=1, col="#cc0000")
+    legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+    print("Done")
+    
+    #write out picture to directory
+    jpeg(paste("Scan_",paste("MQM", j, sep=""),"_", i, ".jpg", sep = ""),
+     width = 11,
+     height = 4,
+     units = "in",
+     res = 320)
+    plot(mqm,main=paste("MQM", j, "for", i)) 
+    abline(h=results$IM$threshold[[i]], lty="dotted", lwd=1, col="#cc0000")
+    legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+    dev.off()
+
+    #make a qtl object
+    qtl<-summary(mqm, 
+                 perm=results$IM$perms[[i]], 
+                 lodcolum=1, 
+                 alpha=0.05)
+  
+    if(nrow(qtl)==0){
+      
+      results[[paste("MQM", j, sep="")]]$qtl[[i]]<-NULL
+      print(paste("There were no new QTL identified for", i, "aborting loop"))
+      break
+      
+    }else{
+      
+      #rename QTL to identify which scan they came from
+      qtl$name=paste(paste("MQM", j, "_", sep=""), qtl$chr,"-pos-",qtl$pos,sep="")
+       
+      #Defining QTL
+      print("Drawing new QTL")
+      c<-qtl[,1] #define the chromosomes where QTL are found
+      p<-qtl[,2] #define the positions of the QTL
+      a<-subset(cross_file, chr=c) #subset the chromosomes where QTL are found
+       
+      #simulate the genome for that subset
+      a<-sim.geno(a, 
+                  n.draws = 128, 
+                  step = 2, 
+                  off.end = 0.0, 
+                  error.prob=1.0e-4, 
+                  map.function="kosambi", 
+                  stepwidth="fixed") 
+       
+      #make a QTL object from that subset
+      madeqtl<-makeqtl(a, 
+                       c, 
+                       p, 
+                       qtl.name = qtl[,4], 
+                       what = c("prob")) 
+   
+      #place that QTL object in a list
+      results[[paste("MQM", j, sep="")]]$qtl[[i]]<-madeqtl 
+      print("Done")
+      
+      #announce 
+      print("Running drop-one QTL analysis...")
+       
+      #test the significance of those QTL using dropone analysis
+      qtlfit<-fitqtl(cross_file, 
+                     qtl=madeqtl, 
+                     pheno.col = i, 
+                     get.ests = T,
+                     model="normal", 
+                     method = "hk") 
+      
+      if(!is.null(qtlfit$result.drop)){
+      
+        print("Checking drop-one analysis for significance")
+        a<-as.data.frame(qtlfit$result.drop)
+        a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
+        a<-data.frame(name=rownames(a[a$sig==0,]))
+        a<-tidyr::separate(data = a, 
+                           col = "name",
+                           into = c("chr", "trash", "pos"),
+                           sep = "-")
+        a$pos<-as.numeric(a$pos)
+        a$chr<-gsub(paste("MQM", j, "_", sep=""),"",a$chr)
+        madeqtl<-dropfromqtl(madeqtl,
+                             chr = a$chr,
+                             pos = a$pos)
+        
+        madeqtl<-addtoqtl(cross_file,
+                          qtl = madeqtl,
+                          chr = qtl_check$chr,
+                          pos = qtl_check$pos,
+                          qtl.name = qtl_check$name)
+              
+        
+        results[[paste("MQM", j, sep="")]]$qtl[[i]]<-madeqtl 
+        
+        remove(a,c,p)
+        
+        
+        }else{
+          
+          print(paste("There was only one new QTL identified for ",
+                      i,
+                      " in ", 
+                      paste("MQM", j, sep=""),
+                      "... Checking significance!",
+                      sep = ""))
+          
+          if(qtlfit$result.full[1,6]<0.05){
+      
+            print("New QTL is significant, placing in total model!")
+            
+            madeqtl<-addtoqtl(cross_file,
+                              qtl = madeqtl,
+                              chr = qtl_check$chr,
+                              pos = qtl_check$pos,
+                              qtl.name = qtl_check$name)
+            
+            results[[paste("MQM", j, sep="")]]$qtl[[i]]<-madeqtl 
+      
+            }else{
+    
+              results[[paste("MQM", j, sep="")]]$qtl[[i]]<-NULL 
+              print(paste("There were no new QTL identified for", i, "aborting loop!"))
+              break
+      
+              }
+          }
+      }
+      
+    
+    qtl_check<-results[[paste("MQM", j, sep="")]]$qtl[[i]]
+    
+    j=j+1
+    
+  }
+  
+  #check
+  if(j-1==0){
+    
+    #pull and make final qtl object
+    finalqtl<-results$IM$qtl[[i]]
+    
+  }else{
+  
+    #pull and make final qtl object
+    finalqtl<-results[[paste("MQM", j-1, sep="")]]$qtl[[i]]
+      
+  }
+  
+  #check for significance
+  qtlfit<-fitqtl(cross_file, 
+                 qtl=finalqtl, 
+                 pheno.col = i, 
+                 get.ests = T,
+                 model="normal", 
+                 method = "hk") 
+  
+  #rename the qtl
+  a<-finalqtl
+  a<-data.frame(summary(a))
+  a<-tidyr::separate(a, col = "name", into=c("model", "trash"), sep = "_")
+  a$name<-paste(a$model, "_", a$chr, "-pos-", a$pos, sep = "")
+  finalqtl$name=a$name
+  remove(a)
+  
+  #print
+  print("Filtering insignificant markers...")
+  
+  if(!is.null(qtlfit$result.drop)){
+    
+    a<-as.data.frame(qtlfit$result.drop)
+    a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
+    a<-data.frame(name=rownames(a[a$sig==0,]))
+    finalqtl<-dropfromqtl(finalqtl,
+                          qtl.name = a$name)
+    
+    results$final$qtl_unrefine[[i]]<-finalqtl 
+    
+    remove(a, finalqtl)
+    
+  }else{
+    
+    results$final$qtl_unrefine[[i]]<-finalqtl
+    remove(finalqtl)
+    
+  }
+   
+  #print
+  print("Refining QTL position...")
+  
+  #refine
+  results$final$qtl_refine[[i]]<-refineqtl(cross = cross_file, 
+                                           pheno.col = i, 
+                                           qtl = results$final$qtl_unrefine[[i]], 
+                                           verbose = FALSE,
+                                           method = "hk")
+  #rename the qtl
+  a<-results$final$qtl_refine[[i]]
+  a<-data.frame(summary(a))
+  a<-tidyr::separate(a, col = "name", into=c("model", "trash"), sep = "_")
+  a$name<-paste(a$model, "_", a$chr, "-pos-", a$pos, sep = "")
+  results$final$qtl_refine[[i]]$name=a$name
+  remove(a)
+  
+  #check for significance
+  qtlfit<-fitqtl(cross_file, 
+                 qtl=results$final$qtl_refine[[i]], 
+                 pheno.col = i, 
+                 get.ests = T,
+                 model="normal", 
+                 method = "hk") 
+  
+  finalqtl<-results$final$qtl_refine[[i]]
+  
+  #print
+  print("Filtering insignificant markers...")
+  
+  if(!is.null(qtlfit$result.drop)){
+    
+    a<-as.data.frame(qtlfit$result.drop)
+    a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
+    a<-data.frame(name=rownames(a[a$sig==0,]))
+
+    finalqtl<-dropfromqtl(finalqtl,
+                          qtl.name = a$name)
+    
+    results$final$qtl_refine_filt[[i]]<-finalqtl 
+    
+    remove(a, finalqtl)
+    
+  }else{
+    
+    remove(a, finalqtl)
+    
+  }
+  
+  droplodint<-c()
+  
+  #create QTL 1.5 drop LOD intervals
+  for(z in results$final$qtl_refine_filt[[i]]$name){
+    
+    a<-data.frame(name=z)
+    a<-tidyr::separate(data = a,
+                       col = "name",
+                       into = c("scan", "other"),
+                       sep = "_",
+                       remove = FALSE)
+    a<-tidyr::separate(data = a,
+                       col = "other",
+                       into = c("chr", "trash", "pos"),
+                       sep = "-",
+                       remove = TRUE)
+    b<-results[[a$scan]]$scan[[i]]
+    c<-find.pseudomarker(cross = cross_file,
+                         chr = a$chr,
+                         pos = as.numeric(a$pos))
+    d<-lodint(results = b,
+              chr = a$chr,
+              qtl.index = c,
+              drop = 1.5,
+              lodcolumn = 1,
+              expandtomarkers = TRUE)
+    
+    d<-data.frame(name=z, 
+                  trait=i,
+                  chr=unique(d$chr),
+                  start_marker=rownames(d)[1],
+                  start=d[1,2], 
+                  mid_marker=rownames(d)[2],
+                  mid_pos=d[2,2],
+                  stop_marker=rownames(d)[3],
+                  stop=d[3,2])
+    
+    droplodint<-rbind(droplodint, d)
+    
+    remove(a,b,c,d)
+  }
+  
+  #place in results
+  results$final$qtl_support_intervals[[i]]<-droplodint
+  
+  #remove
+  remove(droplodint)
+  
+}
+
+#rename results
+results_FHB_FDK_DON<-results
+```
+
+# Visualize FHB, FDK, and DON QTL 
+
+```{r}
+#make object for ggplot
+traits<-names(cross_file$pheno)[c(grep("VR", names(cross_file$pheno)),grep("FDK", names(cross_file$pheno)),grep("DON", names(cross_file$pheno)))]
+
+#make object
+fhb_fdk_don_ggplot<-c()
+
+for(i in traits){
+  
+  a<-results_FHB_FDK_DON$final$qtl_support_intervals[[i]]
+  fhb_fdk_don_ggplot<-rbind(fhb_fdk_don_ggplot, a)
+  remove(a)
+  
+}
+
+d<-results_FHB_FDK_DON$IM$scan$VR_ME %>%
+  filter(chr %in% as.character(unique(fhb_fdk_don_ggplot$chr)))
+
+fhb_fdk_don_ggplot<-fhb_fdk_don_ggplot %>% 
+  mutate(trait=gsub("FHB", "VR", trait)) %>%
+  mutate(chr=paste(chr, trait, sep = "_"))
+
+library(ggrepel)
+library(patchwork)
+
+finalplot<-list()
+j=1
+
+color_palette <- c(
+  "VR_ME" = "#FF0000",      # Red
+  "VR_KIN19" = "#8B0000",   # DarkRed
+  "VR_KIN20" = "#B22280",   # Firebrick
+  "VR_RAL19" = "#A0522D",   # Brown
+  "VR_RAL20" = "#FF4500",   # OrangeRed
+  "VR_WAR20" = "#FF6347",   # Tomato
+  "FDK_ME" = "#FFFF00",     # Yellow
+  "FDK_KIN19" = "#B8860B",  # DarkGoldenrod
+  "FDK_KIN20" = "#FFD700",  # Gold
+  "FDK_RAL19" = "#DAA520",  # Goldenrod
+  "FDK_RAL20" = "#F0E68C",  # Khaki
+  "FDK_WAR19" = "#EEE8AA",  # PaleGoldenrod
+  "FDK_WAR20" = "#8B864E",  # Khaki4
+  "DON_ME" = "#00FF00",     # DarkGreen
+  "DON_KIN19" = "#66CD00",  # Chartreuse3
+  "DON_KIN20" = "#556B2F",  # DarkOliveGreen
+  "DON_RAL19" = "#8FBC8F",  # DarkSeaGreen
+  "DON_RAL20" = "#6B8E23",  # OliveDrab
+  "DON_WAR19" = "#98FB98",  # PaleGreen
+  "DON_WAR20" = "#00FF7F"   # SpringGreen1
+)
+
+
+finalplot<-list()
+j=1
+
+for(i in unique(d$chr)){
+
+  a<-fhb_fdk_don_ggplot[grep(i, fhb_fdk_don_ggplot$chr),]
+  a$trait<-factor(a$trait, levels = c("VR_ME", 
+                                      "VR_KIN19", 
+                                      "VR_KIN20", 
+                                      "VR_RAL19", 
+                                      "VR_RAL20", 
+                                      "VR_WAR20", 
+                                      "FDK_ME", 
+                                      "FDK_KIN19", 
+                                      "FDK_KIN20", 
+                                      "FDK_RAL19", 
+                                      "FDK_RAL20", 
+                                      "FDK_WAR19", 
+                                      "FDK_WAR20", 
+                                      "DON_ME", 
+                                      "DON_KIN19", 
+                                      "DON_KIN20", 
+                                      "DON_RAL19", 
+                                      "DON_RAL20", 
+                                      "DON_WAR19", 
+                                      "DON_WAR20"))
+
+  b<-d[d$chr==i,]
+  b<-b[-grep("loc", rownames(b)),]
+  b<-rownames_to_column(b, var = "marker")
+  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
+  
+  if(j==1){
+  
+    c<-ggplot(data=b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      theme_classic()+
+      theme(legend.position = ifelse(length(unique(a$trait))!=20, "none", "right"),
+            axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank())+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+      
+    if(length(Label)>0){
+      c<-c+
+        geom_point(data = d[rownames(d) %in% Label,], aes(x=chr, y=pos), color="green", size=4, shape=17)
+    }
+  
+  }else{
+    
+    c<-ggplot(data = b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      theme_classic()+
+      theme(legend.position = ifelse(length(unique(a$trait))!=20, "none", "right"),
+            axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank(),
+            #axis.line.y = element_blank(),
+            axis.title.y = element_blank(),
+            #axis.ticks.y = element_blank(),
+            #axis.text.y = element_blank()
+            )+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+      
+    if(length(Label)>0){
+      c<-c+
+        geom_point(data = d[rownames(d) %in% Label,], aes(x=chr, y=pos), color="green", size=4, shape=17)
+    }
+  
+    
+  }
+  finalplot[[paste("chr",i,sep="_")]]<-c
+  remove(a,b,c)
+  j=j+1
+    
+}
+
+a<-(finalplot$chr_1A+finalplot$chr_1B+finalplot$chr_1D+
+      finalplot$chr_2A+finalplot$chr_2B+finalplot$chr_2D+
+      finalplot$chr_3A+finalplot$chr_3B+finalplot$chr_3D+
+      finalplot$chr_4A+finalplot$chr_4B+finalplot$chr_4D+
+      finalplot$chr_5A+finalplot$chr_5B+finalplot$chr_5D+
+      finalplot$chr_6A+finalplot$chr_6B+
+      finalplot$chr_7A+finalplot$chr_7D)+
+  plot_layout(guides = "collect", 
+              nrow = 3,
+              ncol = 6)+
+  plot_annotation(title = "1.5-LOD Support Intervals",
+                  subtitle = "Visual Ratings (VR), Fusarium Damaged Kernels (FDK), and Deoxynivalenol Content (DON)")
+
+a
+ggsave(plot = a,
+       filename = "support_intervals_vr_fdk_and_don.jpg",
+       width = 20,
+       height = 20,
+       dpi = 320,
+       units = "in")
+```
+
+# Redraw with just ME
+
+```{r}
+#make object for ggplot
+traits<-c("VR_ME", "FDK_ME", "DON_ME")
+
+#make object
+fhb_fdk_don_ggplot<-c()
+
+for(i in traits){
+  
+  a<-results_FHB_FDK_DON$final$qtl_support_intervals[[i]]
+  fhb_fdk_don_ggplot<-rbind(fhb_fdk_don_ggplot, a)
+  remove(a)
+  
+}
+
+d<-results_FHB_FDK_DON$IM$scan$VR_ME %>%
+  filter(chr %in% as.character(unique(fhb_fdk_don_ggplot$chr)))
+
+fhb_fdk_don_ggplot<-fhb_fdk_don_ggplot %>% 
+  mutate(trait=ifelse(trait=="VR_ME", "Visual Rating",
+                      ifelse(trait=="FDK_ME", "Fusarium Damaged Kernels",
+                             ifelse(trait=="DON_ME", "Deoxynivalenol Content", "ERROR")))) %>%
+  mutate(chr=paste(chr, trait, sep = "_"))
+
+library(ggrepel)
+library(patchwork)
+
+color_palette <- c(
+  "Visual Rating" = "#FF0000",      # Red
+  "Fusarium Damaged Kernels" = "#FFFF00",     # Yellow
+  "Deoxynivalenol Content" = "#00FF00"      # DarkGreen
+)
+finalplot<-list()
+j=1
+
+for(i in c("2A", "3B", "4A", "4B", "6A", "7A")){
+
+  a<-fhb_fdk_don_ggplot[grep(i, fhb_fdk_don_ggplot$chr),]
+  a$trait<-factor(a$trait, levels = c("Visual Rating",
+                                      "Fusarium Damaged Kernels",
+                                      "Deoxynivalenol Content"))
+  b<-d[d$chr==i,]
+  b<-b[-grep("loc", rownames(b)),]
+  b<-rownames_to_column(b, var = "marker")
+  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
+  
+  if(j==1){
+  
+    c<-ggplot(data=b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      theme_classic()+
+      theme(legend.position = ifelse(length(unique(a$trait))!=3, "none", "right"),
+            axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank())+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+      
+    if(length(Label)>0){
+      c<-c+
+        geom_point(data = d[rownames(d) %in% Label,], aes(x=chr, y=pos), color="green", size=4, shape=17)
+    }
+  
+  }else{
+    
+    c<-ggplot(data = b, aes(x=chr, y=pos))+
+      geom_point(size=2)+
+      geom_line(linewidth=1)+
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by=-10))+
+      scale_color_manual(values = color_palette,
+                         drop=FALSE)+
+      geom_segment(data = a, aes(x=chr, xend=chr, y=start, yend=stop, color=trait), linewidth=2, show.legend = TRUE)+
+      theme_classic()+
+      theme(legend.position = ifelse(length(unique(a$trait))!=3, "none", "right"),
+            axis.title.x = element_blank(),
+            axis.text.x = element_blank(),
+            axis.ticks.x = element_blank(),
+            axis.line.x = element_blank(),
+            #axis.line.y = element_blank(),
+            axis.title.y = element_blank(),
+            #axis.ticks.y = element_blank(),
+            #axis.text.y = element_blank()
+            )+
+      labs(title = i,
+           color = "Trait Within Environment",
+           y = "cM")
+      
+    if(length(Label)>0){
+      c<-c+
+        geom_point(data = d[rownames(d) %in% Label,], aes(x=chr, y=pos), color="green", size=4, shape=17)
+    }
+  
+    
+  }
+  finalplot[[paste("chr",i,sep="_")]]<-c
+  remove(a,b,c)
+  j=j+1
+    
+}
+
+a<-(finalplot$chr_2A+finalplot$chr_3B+finalplot$chr_4A+finalplot$chr_4B+finalplot$chr_6A+finalplot$chr_7A)+
+  plot_layout(guides = "collect", 
+              nrow = 1)+
+  plot_annotation(title = "1.5-LOD Support Intervals",
+                  subtitle = "Visual Ratings (VR), Fusarium Damaged Kernels (FDK), and Deoxynivalenol Content (DON)")
+
+a
+ggsave(plot = a,
+       filename = "support_intervals_vr_fdk_and_don_ME_only.jpg",
+       width = 10,
+       height = 8,
+       dpi = 320,
+       units = "in")
+```
+
+# Percent variance in ME
+
+```{r}
+#trait
+traits<-c("VR_ME", "FDK_ME", "DON_ME")
+
+fhb_fdk_don_ggplot<-c()
+
+for(i in traits){
+  
+  a<-results_FHB_FDK_DON$final$qtl_support_intervals[[i]]
+  fhb_fdk_don_ggplot<-rbind(fhb_fdk_don_ggplot, a)
+  remove(a)
+  
+}
+
+qtl_info<-c()
+
+for(i in c("2A", "3B", "4A", "4B", "6A", "7A")){
+
+  a<-fhb_fdk_don_ggplot[fhb_fdk_don_ggplot$chr==i,]
+  
+  vr_effects<-fitqtl(cross = cross_file,
+                     pheno.col = "VR_ME",
+                     covar = covar_markers[,2:ncol(covar_markers)],
+                     qtl = results_FHB_FDK_DON$final$qtl_refine_filt$VR_ME,
+                     get.ests = TRUE,
+                     model="normal", 
+                     method = "hk")
+      
+  fdk_effects<-fitqtl(cross = cross_file,
+                      pheno.col = "FDK_ME",
+                      covar = covar_markers[,2:ncol(covar_markers)],
+                      qtl = results_FHB_FDK_DON$final$qtl_refine_filt$FDK_ME,
+                      get.ests = TRUE,
+                      model="normal", 
+                      method = "hk")
+        
+  don_effects<-fitqtl(cross = cross_file,
+                      pheno.col = "DON_ME",
+                      covar = covar_markers[,2:ncol(covar_markers)],
+                      qtl = results_FHB_FDK_DON$final$qtl_refine_filt$DON_ME,
+                      get.ests = TRUE,
+                      model="normal", 
+                      method = "hk")
+  
+  b<-as.data.frame(vr_effects$result.drop)[rownames(vr_effects$result.drop) %in% a$name,]
+  b<-rownames_to_column(b, var = "name")
+  b<-b %>% left_join(a, by="name") %>% filter(trait=="VR_ME")
+  
+  c<-as.data.frame(fdk_effects$result.drop)[rownames(fdk_effects$result.drop) %in% a$name,]
+  c<-rownames_to_column(c, var = "name")
+  c<-c %>% left_join(a, by="name") %>% filter(trait=="FDK_ME")
+  
+  d<-as.data.frame(don_effects$result.drop)[rownames(don_effects$result.drop) %in% a$name,]
+  d<-rownames_to_column(d, var = "name")
+  d<-d %>% left_join(a, by="name") %>% filter(trait=="DON_ME")
+  
+  e<-as.data.frame(summary(vr_effects)$est)[rownames(summary(vr_effects)$est) %in% a$name,]
+  e<-rownames_to_column(e, var = "name")
+  b<-b %>% left_join(e, by="name") %>% filter(trait=="VR_ME")
+  
+  f<-as.data.frame(summary(fdk_effects)$est)[rownames(summary(fdk_effects)$est) %in% a$name,]
+  f<-rownames_to_column(f, var = "name")
+  c<-c %>% left_join(f, by="name") %>% filter(trait=="FDK_ME")
+  
+  g<-as.data.frame(summary(don_effects)$est)[rownames(summary(don_effects)$est) %in% a$name,]
+  g<-rownames_to_column(g, var = "name")
+  d<-d %>% left_join(g, by="name") %>% filter(trait=="DON_ME")
+  
+  h<-rbind(b,c,d)
+  
+  qtl_info<-rbind(qtl_info, h)
+
+  remove(a,b,c,d,e,f,g,h,vr_effects,fdk_effects,don_effects)
+}
+
+qtl_info<-qtl_info %>%
+  arrange(chr, mid_pos, trait) %>%
+  separate(start_marker, into=c("junk1", "start_bp"), sep = "_", remove = FALSE) %>%
+  separate(stop_marker, into=c("junk2", "stop_bp"), sep = "_", remove = FALSE) %>%
+  mutate(`Proximal Mbp Position`= round(as.numeric(start_bp)/1000000, 2),
+         `Distal Mbp Position` = round(as.numeric(stop_bp)/1000000, 2),
+         newname = paste("QFhb.nc-", chr, sep = ""),
+         `%var`=`%var`/100) %>%
+  select(newname, 
+         trait, 
+         chr,
+         LOD,
+         start_marker, 
+         start, 
+         `Proximal Mbp Position`,
+         stop_marker, 
+         stop, 
+         `Distal Mbp Position`,
+         est, 
+         SE, 
+         `%var`) %>%
+  rename(QTL=newname,
+         Trait=trait,
+         Chromosome=chr,
+         LOD=LOD,
+         `Proximal Flanking Marker`=start_marker,
+         `Proximal cM Position`=start,
+         `Distal Flanking Marker`=stop_marker,
+         `Distal cM Position`= stop,
+         `Estimated Effect`=est,
+         `Standard Error`=SE,
+         `Percent Variance`=`%var`)
+
+write.csv(qtl_info,
+          "vr_fdk_don_qtl_information.csv",
+          row.names = FALSE)
+```
+
+# Create marker table
+
+```{r}
+# first report
+GAWN_2015 <- readxl::read_excel("2015 5ST MDXN GAWN SUN Marker Report.xlsx",
+                                sheet = "Table 1.4 GAWN Summary",
+                                skip = 4,
+                                .name_repair = 'minimal')
+GAWN_2015 <- GAWN_2015[, colSums(is.na(GAWN_2015)) != nrow(GAWN_2015)]
+GAWN_2015 <- GAWN_2015[,-c(1:4)]
+GAWN_2015 <- GAWN_2015[GAWN_2015$`Cultivar/Designation`=="GA06493-13LE6",]
+
+# second report
+SUWWSN_2016 <- readxl::read_excel("2016 NUWWSN PNUWWSN SUWWSN Marker Report.xlsx",
+                                  sheet = "Table 1.3 SUWWSN summary",
+                                  skip = 4,
+                                  .name_repair = 'minimal')
+SUWWSN_2016 <- SUWWSN_2016[, colSums(is.na(SUWWSN_2016)) != nrow(SUWWSN_2016)]
+SUWWSN_2016 <- SUWWSN_2016[,-c(1:4)]
+SUWWSN_2016 <- SUWWSN_2016[SUWWSN_2016$`Cultivar/Designation`=="NC13-20076",]
+
+# select calls
+GAWN_2015 <- GAWN_2015[,c(1, 
+                          grep("RHT", colnames(GAWN_2015), ignore.case = TRUE),
+                          grep("PPD", colnames(GAWN_2015), ignore.case = TRUE),
+                          grep("VRN", colnames(GAWN_2015), ignore.case = TRUE))]
+SUWWSN_2016 <- SUWWSN_2016[,c(1, 
+                              grep("RHT", colnames(SUWWSN_2016), ignore.case = TRUE),
+                              grep("PPD", colnames(SUWWSN_2016), ignore.case = TRUE),
+                              grep("VRN", colnames(SUWWSN_2016), ignore.case = TRUE))]
+```
