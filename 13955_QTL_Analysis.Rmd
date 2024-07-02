@@ -734,30 +734,30 @@ for (i in traits){
   
   # Perform IM with multiple imputation method
   print("Interval mapping...")
-  scans<-scanone(cross_file, 
-                 pheno.col = i,
-                 addcovar = NULL,
-                 model = "normal", 
-                 method = "hk") 
+  scans <- scanone(cross_file, 
+                   pheno.col = i,
+                   addcovar = NULL,
+                   model = "normal", 
+                   method = "hk") 
   print("Done")
   
   # Perform IM permutations mapping to define significance threshold
   print("Permutational interval mapping...")
-  perms<-scanone(cross_file, 
-                 pheno.col = i, 
-                 addcovar = NULL,
-                 model = "normal", 
-                 method = "hk", 
-                 n.perm = nperms, 
-                 n.cluster = detectCores()-1) #set threshold
+  perms <- scanone(cross_file, 
+                   pheno.col = i, 
+                   addcovar = NULL,
+                   model = "normal", 
+                   method = "hk", 
+                   n.perm = nperms, 
+                   n.cluster = detectCores()-1) #set threshold
   print("Done")
   
   # Plot QTL Scan
   print("Plotting...")
-  threshold<-summary(perms, alpha=0.05)
+  threshold <- summary(perms, alpha=0.05)
   plot(scans,main=paste("IM for", i)) 
-  abline(h=threshold, lty="dotted", lwd=1, col="#cc0000")
-  legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+  abline(h = threshold, lty = "dotted", lwd = 1, col="#cc0000")
+  legend("topleft",legend = c("p=0.05"),col = c("#cc0000"),lty = "dotted")
   
   # Print plot
   jpeg(paste("Scan_IM_", i, ".jpg", sep = ""),
@@ -765,22 +765,24 @@ for (i in traits){
        height = 4,
        units = "in",
        res = 320)
-  threshold<-summary(perms, alpha=0.05)
-  plot(scans,main=paste("IM for", i)) 
-  abline(h=threshold, lty="dotted", lwd=1, col="#cc0000")
-  legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+  threshold <- summary(perms, alpha=0.05)
+  plot(scans, main = paste("IM for", i)) 
+  abline(h = threshold, lty = "dotted", lwd = 1, col = "#cc0000")
+  legend("topleft",legend = c("p=0.05"),col = c("#cc0000"),lty = "dotted")
   dev.off()
   print("Done")
   
   # Show the peak markers for QTL
   print("Defining QTL...")
-  qtl<-summary(scans, perm=perms, 
-               lodcolum=1, alpha=0.05)
+  qtl <- summary(scans, 
+                 perm = perms, 
+                 lodcolum = 1, 
+                 alpha=0.05)
   
   # Place outputs in lists
-  results$IM$scan[[i]]<-scans # Place the scan a the list
-  results$IM$perms[[i]]<-perms # Place the permutations a the list
-  results$IM$threshold[[i]]<-threshold # Place the thresholds a the list
+  results$IM$scan[[i]] <- scans # Place the scan a the list
+  results$IM$perms[[i]] <- perms # Place the permutations a the list
+  results$IM$threshold[[i]] <- threshold # Place the thresholds a the list
   
   # If not QTL is found
   if(nrow(qtl)==0){
@@ -790,373 +792,430 @@ for (i in traits){
   }
   
   # Rename QTL to identify which scan they came from
-  qtl$name=paste("IM_", qtl$chr,"-pos-",qtl$pos,sep="")
+  qtl$name <- paste("IM_", qtl$chr, "-pos-", qtl$pos, sep = "")
   print("Done")
   
   # Define the QTL locations and effects
   print("Drawing QTL...")
-  colnames(scans)<-c("chr","pos","lod")
+  colnames(scans) <- c("chr", "pos", "lod")
   
   # Set up objects for defining QTL
-  c<-qtl[,1] # Define the chromosomes where QTL are found
-  p<-qtl[,2] # Define the positions of the QTL
-  a<-subset(cross_file, chr=c) # Subset the chromosomes where QTL are found
+  c <- qtl[,1] # Define the chromosomes where QTL are found
+  p <- qtl[,2] # Define the positions of the QTL
+  a <- subset(cross_file, chr=c) # Subset the chromosomes where QTL are found
   
   # Make new cross with genome subset
-  a<-sim.geno(a, 
-              n.draws = 128, 
-              step = 2, 
-              off.end = 0.0, 
-              error.prob=1.0e-4, 
-              map.function="kosambi", 
-              stepwidth="fixed")
+  a <- sim.geno(a, 
+                n.draws = 128, 
+                step = 2, 
+                off.end = 0.0, 
+                error.prob = 1.0e-4, 
+                map.function = "kosambi", 
+                stepwidth = "fixed")
   
   # Make a QTL object from that subset
-  madeqtl<-makeqtl(a, 
-                   c, 
-                   p, 
-                   qtl.name = qtl[,4], 
-                   what = c("prob")) 
+  madeqtl <- makeqtl(a, 
+                     c, 
+                     p, 
+                     qtl.name = qtl[,4], 
+                     what = c("prob")) 
 
   # Place that QTL object in a list
-  results$IM$qtl[[i]]<-madeqtl 
+  results$IM$qtl[[i]] <- madeqtl 
   print("Done")
   
   # Announce
   print("Running drop-one QTL analysis to check significance...")
   
   # Test the significance of those QTL using drop one analysis
-  qtlfit<-fitqtl(cross_file, 
-                 qtl=results$IM$qtl[[i]], 
-                 pheno.col = i,
-                 model="normal", 
-                 method = "hk") 
+  qtlfit <- fitqtl(cross_file, 
+                   qtl = results$IM$qtl[[i]], 
+                   pheno.col = i,
+                   model = "normal", 
+                   method = "hk") 
   
-  # Remove insignificant qtl
+  # Remove insignificant QTL
   if(!is.null(qtlfit$result.drop)){
+    # Make an object of the drop results of the fit QTL object
+    a <- as.data.frame(qtlfit$result.drop)
     
-    # Make an object of the drop results of the fit qtl object
-    a<-as.data.frame(qtlfit$result.drop)
+    # Find the insignificant QTL
+    a$sig <- ifelse(a$`Pvalue(F)`<0.05, 1, 0)
     
-    # Find the 
-    a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
-    a<-data.frame(name=rownames(a[a$sig==0,]))
-    madeqtl<-dropfromqtl(madeqtl,
-                         qtl.name = a$name)
+    # Make a dataframe with insignificant QTL
+    a <- data.frame(name = rownames(a[a$sig==0,]))
     
-    results$IM$qtl[[i]]<-madeqtl 
+    # Drop those QTL
+    madeqtl <- dropfromqtl(madeqtl,
+                           qtl.name = a$name)
     
+    # Put that in object
+    results$IM$qtl[[i]] <- madeqtl 
+    
+    # Remove temporary 
     remove(a,c,p,scans,perms,threshold)
-    
   }else{
-    
+    # Remove temporary dataframes
     remove(a,c,p,scans,perms,threshold)
-    
   }
   
-  #set vectors outside the loop
+  # Set vectors outside the loop
   j=1
   
-  #make initial check object
+  # Make initial check object
   qtl_check<-results$IM$qtl[[i]]
   
-  #run MQM until no significant peaks!
+  # Run MQM until no significant peaks
   repeat{
     
-    #announce  
+    # Announce  
     print(paste("-------- Performing Additional QTL Scan for Trait", i,"--------"))
     
-    mqm<-addqtl(cross = cross_file, 
-                pheno.col = i, 
-                qtl=qtl_check, 
-                covar = NULL, 
-                method = "hk")
-    results[[paste("MQM", j, sep="")]]$scan[[i]]<-mqm
+    # Run multiple QTL mapping
+    mqm <- addqtl(cross = cross_file, 
+                  pheno.col = i, 
+                  qtl = qtl_check, 
+                  covar = NULL, 
+                  method = "hk")
     
-    #plot QTL Scan
+    # Put that in the list
+    results[[paste("MQM", j, sep="")]]$scan[[i]] <- mqm
+    
+    # Plot QTL Scan
     print("Plotting...")
-    plot(mqm,main=paste("MQM", j, "for", i)) 
-    abline(h=results$IM$threshold[[i]], lty="dotted", lwd=1, col="#cc0000")
-    legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+    plot(mqm, main = paste("MQM", j, "for", i)) 
+    abline(h = results$IM$threshold[[i]], lty = "dotted", lwd = 1, col = "#cc0000")
+    legend("topleft",legend = c("p=0.05"),col = c("#cc0000"),lty = "dotted")
     print("Done")
     
-    #write out picture to directory
+    # Write out picture to directory
     jpeg(paste("Scan_",paste("MQM", j, sep=""),"_", i, ".jpg", sep = ""),
      width = 11,
      height = 4,
      units = "in",
      res = 320)
-    plot(mqm,main=paste("MQM", j, "for", i)) 
-    abline(h=results$IM$threshold[[i]], lty="dotted", lwd=1, col="#cc0000")
-    legend("topleft",legend=c("p=0.05"),col = c("#cc0000"),lty = "dotted")
+    plot(mqm, main = paste("MQM", j, "for", i)) 
+    abline(h = results$IM$threshold[[i]], lty = "dotted", lwd = 1, col = "#cc0000")
+    legend("topleft",legend = c("p=0.05"),col = c("#cc0000"),lty = "dotted")
     dev.off()
 
     #make a qtl object
-    qtl<-summary(mqm, 
-                 perm=results$IM$perms[[i]], 
-                 lodcolum=1, 
-                 alpha=0.05)
+    qtl <- summary(mqm, 
+                   perm = results$IM$perms[[i]], 
+                   lodcolum = 1, 
+                   alpha = 0.05)
   
     if(nrow(qtl)==0){
+      # Make a null object in the list of list
+      results[[paste("MQM", j, sep = "")]]$qtl[[i]] <- NULL
       
-      results[[paste("MQM", j, sep="")]]$qtl[[i]]<-NULL
+      # Announce
       print(paste("There were no new QTL identified for", i, "aborting loop"))
+      
+      # Break the loop
       break
-      
     }else{
-      
-      #rename QTL to identify which scan they came from
+      # Rename QTL to identify which scan they came from
       qtl$name=paste(paste("MQM", j, "_", sep=""), qtl$chr,"-pos-",qtl$pos,sep="")
        
-      #Defining QTL
+      # Defining QTL
       print("Drawing new QTL")
-      c<-qtl[,1] #define the chromosomes where QTL are found
-      p<-qtl[,2] #define the positions of the QTL
-      a<-subset(cross_file, chr=c) #subset the chromosomes where QTL are found
+      c<-qtl[,1] # Define the chromosomes where QTL are found
+      p<-qtl[,2] # Define the positions of the QTL
+      a<-subset(cross_file, chr=c) # Subset the chromosomes where QTL are found
        
-      #simulate the genome for that subset
-      a<-sim.geno(a, 
-                  n.draws = 128, 
-                  step = 2, 
-                  off.end = 0.0, 
-                  error.prob=1.0e-4, 
-                  map.function="kosambi", 
-                  stepwidth="fixed") 
+      # Simulate the genome for that subset
+      a <- sim.geno(a, 
+                    n.draws = 128, 
+                    step = 2, 
+                    off.end = 0.0, 
+                    error.prob = 1.0e-4, 
+                    map.function = "kosambi", 
+                    stepwidth = "fixed") 
        
-      #make a QTL object from that subset
-      madeqtl<-makeqtl(a, 
-                       c, 
-                       p, 
-                       qtl.name = qtl[,4], 
-                       what = c("prob")) 
+      # Make a QTL object from that subset
+      madeqtl <- makeqtl(a, 
+                         c, 
+                         p, 
+                         qtl.name = qtl[,4], 
+                         what = c("prob")) 
    
-      #place that QTL object in a list
-      results[[paste("MQM", j, sep="")]]$qtl[[i]]<-madeqtl 
+      # Place that QTL object in a list
+      results[[paste("MQM", j, sep = "")]]$qtl[[i]] <- madeqtl 
       print("Done")
       
-      #announce 
+      # Announce
       print("Running drop-one QTL analysis...")
        
-      #test the significance of those QTL using dropone analysis
-      qtlfit<-fitqtl(cross_file, 
-                     qtl=madeqtl, 
-                     pheno.col = i, 
-                     get.ests = T,
-                     model="normal", 
-                     method = "hk") 
+      # Test the significance of those QTL using dropone analysis
+      qtlfit <- fitqtl(cross_file, 
+                       qtl = madeqtl, 
+                       pheno.col = i, 
+                       get.ests = T,
+                       model = "normal", 
+                       method = "hk") 
       
+      # Check results
       if(!is.null(qtlfit$result.drop)){
-      
+        # Announce
         print("Checking drop-one analysis for significance")
-        a<-as.data.frame(qtlfit$result.drop)
-        a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
-        a<-data.frame(name=rownames(a[a$sig==0,]))
-        a<-tidyr::separate(data = a, 
-                           col = "name",
-                           into = c("chr", "trash", "pos"),
-                           sep = "-")
-        a$pos<-as.numeric(a$pos)
-        a$chr<-gsub(paste("MQM", j, "_", sep=""),"",a$chr)
-        madeqtl<-dropfromqtl(madeqtl,
-                             chr = a$chr,
-                             pos = a$pos)
         
-        madeqtl<-addtoqtl(cross_file,
-                          qtl = madeqtl,
-                          chr = qtl_check$chr,
-                          pos = qtl_check$pos,
-                          qtl.name = qtl_check$name)
+        # Make a dataframe of the drop results
+        a <- as.data.frame(qtlfit$result.drop)
+        
+        # Check significance 
+        a$sig <- ifelse(a$`Pvalue(F)`<0.05, 1, 0)
+        
+        # Check significance 
+        a <- data.frame(name=rownames(a[a$sig==0,]))
+        
+        # Separate the column name into sections 
+        a <- tidyr::separate(data = a, 
+                             col = "name",
+                             into = c("chr", "trash", "pos"),
+                             sep = "-")
+        
+        # Make sure position is a number
+        a$pos <- as.numeric(a$pos)
+        
+        # Make the chromosome object from the trait
+        a$chr <- gsub(paste("MQM", j, "_", sep = ""),"",a$chr)
+        
+        # Drop the insignificant QTL from the object
+        madeqtl <- dropfromqtl(madeqtl,
+                               chr = a$chr,
+                               pos = a$pos)
+        
+        # Add the significant QTL to the object
+        madeqtl <- addtoqtl(cross_file,
+                            qtl = madeqtl,
+                            chr = qtl_check$chr,
+                            pos = qtl_check$pos,
+                            qtl.name = qtl_check$name)
               
         
-        results[[paste("MQM", j, sep="")]]$qtl[[i]]<-madeqtl 
+        # Add this QTL object to the list of list
+        results[[paste("MQM", j, sep="")]]$qtl[[i]] <- madeqtl 
         
-        remove(a,c,p)
-        
-        
+        # Remove temporary dataframes
+        remove(a, c, p)
         }else{
-          
+          # Announce 
           print(paste("There was only one new QTL identified for ",
                       i,
                       " in ", 
-                      paste("MQM", j, sep=""),
+                      paste("MQM", j, sep = ""),
                       "... Checking significance!",
                       sep = ""))
           
+          # If this QTL is significant
           if(qtlfit$result.full[1,6]<0.05){
-      
+            # Announce
             print("New QTL is significant, placing in total model!")
             
-            madeqtl<-addtoqtl(cross_file,
-                              qtl = madeqtl,
-                              chr = qtl_check$chr,
-                              pos = qtl_check$pos,
-                              qtl.name = qtl_check$name)
+            # Add that significant peak to the QTL object
+            madeqtl <- addtoqtl(cross_file,
+                                qtl = madeqtl,
+                                chr = qtl_check$chr,
+                                pos = qtl_check$pos,
+                                qtl.name = qtl_check$name)
             
-            results[[paste("MQM", j, sep="")]]$qtl[[i]]<-madeqtl 
-      
+            # Add the object to the list of list
+            results[[paste("MQM", j, sep = "")]]$qtl[[i]] <- madeqtl 
             }else{
-    
-              results[[paste("MQM", j, sep="")]]$qtl[[i]]<-NULL 
-              print(paste("There were no new QTL identified for", i, "aborting loop!"))
+              # Make the multiple QTL model NULL
+              results[[paste("MQM", j, sep = "")]]$qtl[[i]] <- NULL 
+              
+              # Announce
+              print(paste("There were no new QTL identified for", i, "concluding loop."))
+              
+              # Break loop 
               break
-      
-              }
+            }
           }
-      }
+        }
       
     
-    qtl_check<-results[[paste("MQM", j, sep="")]]$qtl[[i]]
+    # Add result to object to check
+    qtl_check <- results[[paste("MQM", j, sep="")]]$qtl[[i]]
     
+    # Add 1 to the j vector to indicate what round we are on
     j=j+1
-    
   }
   
-  #check
+  # Check
   if(j-1==0){
-    
-    #pull and make final qtl object
-    finalqtl<-results$IM$qtl[[i]]
-    
+    # Pull and make final qtl object
+    finalqtl <- results$IM$qtl[[i]]
   }else{
-  
-    #pull and make final qtl object
-    finalqtl<-results[[paste("MQM", j-1, sep="")]]$qtl[[i]]
+    # Pull and make final qtl object
+    finalqtl <- results[[paste("MQM", j-1, sep="")]]$qtl[[i]]
       
   }
   
-  #check for significance
-  qtlfit<-fitqtl(cross_file, 
-                 qtl=finalqtl, 
-                 pheno.col = i, 
-                 get.ests = T,
-                 model="normal", 
-                 method = "hk") 
+  # Check for significance
+  qtlfit <- fitqtl(cross_file, 
+                   qtl = finalqtl, 
+                   pheno.col = i, 
+                   get.ests = T,
+                   model = "normal", 
+                   method = "hk") 
   
-  #rename the qtl
-  a<-finalqtl
-  a<-data.frame(summary(a))
-  a<-tidyr::separate(a, col = "name", into=c("model", "trash"), sep = "_")
-  a$name<-paste(a$model, "_", a$chr, "-pos-", a$pos, sep = "")
-  finalqtl$name=a$name
+  # Rename the QTL
+  a <- finalqtl
+  a <- data.frame(summary(a))
+  a <- tidyr::separate(a, col = "name", into=c("model", "trash"), sep = "_")
+  a$name <- paste(a$model, "_", a$chr, "-pos-", a$pos, sep = "")
+  finalqtl$name = a$name
   remove(a)
   
-  #print
+  # Announce
   print("Filtering insignificant markers...")
   
+  # If there are drop one analysis results
   if(!is.null(qtlfit$result.drop)){
+    # Pull results into a dataframe
+    a <- as.data.frame(qtlfit$result.drop)
     
-    a<-as.data.frame(qtlfit$result.drop)
-    a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
-    a<-data.frame(name=rownames(a[a$sig==0,]))
-    finalqtl<-dropfromqtl(finalqtl,
-                          qtl.name = a$name)
+    # Find the significant QTL
+    a$sig <- ifelse(a$`Pvalue(F)`<0.05, 1, 0)
     
-    results$final$qtl_unrefine[[i]]<-finalqtl 
+    # Select the insignificant markers 
+    a <- data.frame(name=rownames(a[a$sig==0,]))
     
+    # Remove those QTL from the final QTL object
+    finalqtl <- dropfromqtl(finalqtl,
+                            qtl.name = a$name)
+    
+    # Add this to the list of list
+    results$final$qtl_unrefine[[i]] <- finalqtl 
+    
+    # Remove the object
     remove(a, finalqtl)
-    
   }else{
+    # Put the final object in the list of list
+    results$final$qtl_unrefine[[i]] <- finalqtl
     
-    results$final$qtl_unrefine[[i]]<-finalqtl
+    # Remove the object finalqtl
     remove(finalqtl)
-    
   }
    
-  #print
+  # Announce
   print("Refining QTL position...")
   
-  #refine
-  results$final$qtl_refine[[i]]<-refineqtl(cross = cross_file, 
-                                           pheno.col = i, 
-                                           qtl = results$final$qtl_unrefine[[i]], 
-                                           verbose = FALSE,
-                                           method = "hk")
-  #rename the qtl
-  a<-results$final$qtl_refine[[i]]
-  a<-data.frame(summary(a))
-  a<-tidyr::separate(a, col = "name", into=c("model", "trash"), sep = "_")
-  a$name<-paste(a$model, "_", a$chr, "-pos-", a$pos, sep = "")
-  results$final$qtl_refine[[i]]$name=a$name
+  # Refine the QTL with the refine 
+  results$final$qtl_refine[[i]] <- refineqtl(cross = cross_file, 
+                                             pheno.col = i, 
+                                             qtl = results$final$qtl_unrefine[[i]], 
+                                             verbose = FALSE,
+                                             method = "hk")
+  # Rename the QTL
+  a <- results$final$qtl_refine[[i]]
+  a <- data.frame(summary(a))
+  a <- tidyr::separate(a, col = "name", into=c("model", "trash"), sep = "_")
+  a$name <- paste(a$model, "_", a$chr, "-pos-", a$pos, sep = "")
+  results$final$qtl_refine[[i]]$name <- a$name
   remove(a)
   
-  #check for significance
-  qtlfit<-fitqtl(cross_file, 
-                 qtl=results$final$qtl_refine[[i]], 
-                 pheno.col = i, 
-                 get.ests = T,
-                 model="normal", 
-                 method = "hk") 
+  # Final significance check
+  qtlfit <- fitqtl(cross_file, 
+                   qtl = results$final$qtl_refine[[i]], 
+                   pheno.col = i, 
+                   get.ests = T,
+                   model = "normal", 
+                   method = "hk") 
   
-  finalqtl<-results$final$qtl_refine[[i]]
+  # Put the final QTL object into finalqtl
+  finalqtl <- results$final$qtl_refine[[i]]
   
-  #print
-  print("Filtering insignificant markers...")
-  
+  # If there are drop one analysis results
   if(!is.null(qtlfit$result.drop)){
+    # Pull results into a dataframe
+    a <- as.data.frame(qtlfit$result.drop)
     
-    a<-as.data.frame(qtlfit$result.drop)
-    a$sig<-ifelse(a$`Pvalue(F)`<0.05, 1, 0)
-    a<-data.frame(name=rownames(a[a$sig==0,]))
-
-    finalqtl<-dropfromqtl(finalqtl,
-                          qtl.name = a$name)
+    # Find the significant QTL
+    a$sig <- ifelse(a$`Pvalue(F)`<0.05, 1, 0)
     
-    results$final$qtl_refine_filt[[i]]<-finalqtl 
+    # Select the insignificant markers 
+    a <- data.frame(name=rownames(a[a$sig==0,]))
     
+    # Remove those QTL from the final QTL object
+    finalqtl <- dropfromqtl(finalqtl,
+                            qtl.name = a$name)
+    
+    # Add this to the list of list
+    results$final$qtl_refine_filt[[i]] <- finalqtl 
+    
+    # Remove the object
     remove(a, finalqtl)
-    
   }else{
+    # Put the final object in the list of list
+    results$final$qtl_refine_filt[[i]] <- finalqtl
     
-    remove(a, finalqtl)
-    
+    # Remove the object finalqtl
+    remove(finalqtl)
   }
-  
+   
+  # Create an object for support LOD internvals 
   droplodint<-c()
   
   #create QTL 1.5 drop LOD intervals
   for(z in results$final$qtl_refine_filt[[i]]$name){
+    # Pull data for specific QTL
+    a <- data.frame(name = z)
     
-    a<-data.frame(name=z)
-    a<-tidyr::separate(data = a,
-                       col = "name",
-                       into = c("scan", "other"),
-                       sep = "_",
-                       remove = FALSE)
-    a<-tidyr::separate(data = a,
-                       col = "other",
-                       into = c("chr", "trash", "pos"),
-                       sep = "-",
-                       remove = TRUE)
-    b<-results[[a$scan]]$scan[[i]]
-    c<-find.pseudomarker(cross = cross_file,
-                         chr = a$chr,
-                         pos = as.numeric(a$pos))
-    d<-lodint(results = b,
-              chr = a$chr,
-              qtl.index = c,
-              drop = 1.5,
-              lodcolumn = 1,
-              expandtomarkers = TRUE)
+    # Pull the scan name 
+    a <- tidyr::separate(data = a,
+                         col = "name",
+                         into = c("scan", "other"),
+                         sep = "_",
+                         remove = FALSE)
     
-    d<-data.frame(name=z, 
-                  trait=i,
-                  chr=unique(d$chr),
-                  start_marker=rownames(d)[1],
-                  start=d[1,2], 
-                  mid_marker=rownames(d)[2],
-                  mid_pos=d[2,2],
-                  stop_marker=rownames(d)[3],
-                  stop=d[3,2])
+    # Pull the position name
+    a <- tidyr::separate(data = a,
+                         col = "other",
+                         into = c("chr", "trash", "pos"),
+                         sep = "-",
+                         remove = TRUE)
     
-    droplodint<-rbind(droplodint, d)
+    # Pull the relevant scan 
+    b <- results[[a$scan]]$scan[[i]]
     
+    # Find the nearest sudo marker to the LOD peak
+    c <- find.pseudomarker(cross = cross_file,
+                           chr = a$chr,
+                           pos = as.numeric(a$pos))
+    
+    # Pull the confidence interval for 1.5 LOD drop
+    d <- lodint(results = b,
+                chr = a$chr,
+                qtl.index = c,
+                drop = 1.5,
+                lodcolumn = 1,
+                expandtomarkers = TRUE)
+    
+    # Create a dataframe with that data
+    d <- data.frame(name = z, 
+                    trait = i,
+                    chr = unique(d$chr),
+                    start_marker = rownames(d)[1],
+                    start = d[1,2], 
+                    mid_marker = rownames(d)[2],
+                    mid_pos = d[2,2],
+                    stop_marker = rownames(d)[3],
+                    stop = d[3,2])
+    
+    # Bind into lodint object
+    droplodint <- rbind(droplodint, d)
+    
+    # Remove temporary data
     remove(a,b,c,d)
   }
   
-  #place in results
-  results$final$qtl_support_intervals[[i]]<-droplodint
+  # Place in results
+  results$final$qtl_support_intervals[[i]] <- droplodint
   
-  #remove
+  # Remove
   remove(droplodint)
   
 }
