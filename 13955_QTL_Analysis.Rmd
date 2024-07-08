@@ -2884,7 +2884,7 @@ a <- (finalplot$chr_1A+
         finalplot$chr_7D)+
     plot_layout(guides = "collect", nrow = 4)+
     plot_annotation(title = "1.5-LOD Support Intervals",
-                    subtitle = "Plant Height (PH), Heading Date (HD), Visual Rating (VR), Fusarium Damaged Kernels (FDK), and Deoxynivalenol Content (DON)")
+                    subtitle = "Visual Rating (VR), Fusarium Damaged Kernels (FDK), and Deoxynivalenol Content (DON)")
 
 # Visualize final plot
 a
@@ -3069,7 +3069,7 @@ a <- (finalplot$chr_1A+
         finalplot$chr_7D)+
     plot_layout(guides = "collect", nrow = 4)+
     plot_annotation(title = "1.5-LOD Support Intervals",
-                    subtitle = "Plant Height (PH), Heading Date (HD), Visual Rating (VR), Fusarium Damaged Kernels (FDK), and Deoxynivalenol Content (DON)")
+                    subtitle = "Visual Rating (VR), Fusarium Damaged Kernels (FDK), and Deoxynivalenol Content (DON)")
 
 # Visualize final plot
 a
@@ -3162,8 +3162,6 @@ for(i in traits){
   # Remove
   remove(a,b,c,d,e)
 }
-
-
 
 # Write file
 write.csv(qtl_info_drop_one_adj,
