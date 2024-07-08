@@ -3280,6 +3280,8 @@ writeLines(markdown_content, "supplemental_information_1.Rmd")
 rmarkdown::render("supplemental_information_1.Rmd", output_format = "pdf_document")
 ```
 
+## Supplemental Information 2
+
 ```{r}
 # Create the Markdown content
 markdown_content <- c("
