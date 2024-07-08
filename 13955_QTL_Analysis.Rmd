@@ -227,6 +227,8 @@ for (i in env) {
       remove(pheno_subset)
       next
     }
+    
+    # If the trait is abnormally distributed
     if (j %in% c("FHB", "FDK", "DON")) {
       # Run model and pull estimates
       fit <- asreml(fixed = Y ~ GENOTYPE,
@@ -236,7 +238,7 @@ for (i in env) {
                     family = asr_poisson(),
                     maxit = 75)
       
-      # Check if model converges and if it doesn't, default to RCBD with normal distribution
+      # Check if model converges and if it results in critial error, default to RCBD with normal distribution
       if (fit$converge == FALSE | (i == "WAR20" & j == "FHB")) {
         # Fit model
         fit <- asreml(fixed = Y ~ GENOTYPE,
@@ -248,9 +250,9 @@ for (i in env) {
         fit <- update.asreml(fit)
       }
       
-      # Get quick summary      
-      print(summary(fit))
-      print(plot(fit))
+      # Get quick summary (comment out for markdown) 
+      # print(summary(fit))
+      # print(plot(fit))
       
       # Pull BLUEs
       pred <- predict(fit, classify = "GENOTYPE", maxit = 75)$pvals[, c("GENOTYPE", "predicted.value")]
@@ -266,6 +268,10 @@ for (i in env) {
                     random = ~ REP,
                     residual = ~ units,
                     data = pheno_subset)
+      
+      # Get quick summary (comment out for markdown) 
+      # print(summary(fit))
+      # print(plot(fit))
       
       # Get BLUEs
       pred <- predict(fit, classify = "GENOTYPE")$pvals[, c("GENOTYPE", "predicted.value")]
@@ -329,9 +335,9 @@ for (i in traits) {
       
   }
   
-  # Get quick summary
-  print(summary(fit))
-  print(plot(fit))
+  # Get quick summary (comment out for markdown) 
+  # print(summary(fit))
+  # print(plot(fit))
 
   # Get predictions
   pred <- predict(fit, classify = "GENOTYPE")$pvals[, 1:2]
