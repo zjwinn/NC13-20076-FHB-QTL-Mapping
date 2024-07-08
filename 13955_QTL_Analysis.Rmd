@@ -493,6 +493,11 @@ for (i in traits) {
   # Remove the little things
   remove(mlm, pph2, emh2, n_loc, n_rep, n_year, e, r, a)
 }
+
+# Write heritability out
+write.csv(h2s,
+          "heritability.csv",
+          row.names = FALSE)
 ```
 
 # Make the rQTL file
@@ -3252,7 +3257,6 @@ write.csv(marker_report,
 ## Supplemental Information 1
 
 ```{r}
-# Create the Markdown content
 markdown_content <- c("
 ---
 title: \"Supplemental Information 1\"
@@ -3261,7 +3265,35 @@ output: pdf_document
 
 ## Description
 
+Visualization of linkage map marker centimorgan (cM) versus megabase pair (Mbp) distance. Each subgraph header displays the name of each linkage group (chromosome). The x-axis displays the physical Mbp distance between markers. The y-axis displays the recombination-based cM distance between markers.
+
+\\pagebreak
+
+![image of cM vs Mbp](cM_vs_bp_comparison.jpg)
+
+")
+
+# Write the Markdown content to a file
+writeLines(markdown_content, "supplemental_information_1.Rmd")
+
+# Render the Markdown file to PDF
+rmarkdown::render("supplemental_information_1.Rmd", output_format = "pdf_document")
+```
+
+```{r}
+# Create the Markdown content
+markdown_content <- c("
+---
+title: \"Supplemental Information 2\"
+output: pdf_document
+---
+
+## Description
+
 Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for heading date (HD) and plant height (PH), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). Presented are the results of scans performed without heading date and plant height marker covariates. In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation significance threshold at alpha equals 0.05. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map.
+
+\\pagebreak
+
 ")
 
 for(i in traits){
@@ -3315,19 +3347,19 @@ for(i in traits){
 }
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_1.Rmd")
+writeLines(markdown_content, "supplemental_information_2.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_1.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_2.Rmd", output_format = "pdf_document")
 ```
 
-## Supplemental Information 2
+## Supplemental Information 3
 
 ```{r}
 # Create the Markdown content
 markdown_content <- c('
 ---
-title: \"Supplemental Information 2\"
+title: \"Supplemental Information 3\"
 output: 
   pdf_document:
     extra_dependencies: ["geometry"]
@@ -3339,31 +3371,35 @@ geometry: landscape
 
 A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn from peak positions of significant quantitative trait locus (QTL) identified for plant height (PH), heading date (HD), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content. This is a nieve model that does not include marker covariates. Both multi-environmental (ME) and within-environment scans were mapped in this image. Within environment scans included the Cunningham Research Station in Kinston, North Carolina in 2019 (KIN19) and 2020 (KIN20); the Lake Wheeler Field Laboratory in Raleigh, North Carolina in 2019 (RAL19) and 2020 (RAL20), and the Eastern Agricultural Research and Extension Center in Warsaw Virginia in 2019 (WAR19) and 2020 (WAR20). Support intervals are denoted by bars to the right of linkage groups. The y-axis displays a scale for length of linkage groups in centimorgans (cM). Each linkage group is displayed as a series of points (markers) and a connecting line (distance between markers). The length and position of the bar denotes the length and position of the QTL on the resultant linkage group, which is denoted by the title above the linkage group (e.g., 1B). The color of the corresponding support interval denotes the corresponding scan to which that interval belongs (e.g., heading date across environments = HD_ME). Markers labeled by green triangles denote peak QTL positions used as covariates in scans for visual rating of Fusarium head blight infection, Fusarium damaged kernels, and deoxynivalenol content. Covariate markers were selected based on their repeated occurrence across scans and their appearance in the multi-environmental scans of both plant height and heading date. 
 
+\\pagebreak
 
 ![](support_intervals_hd_ph_vr_fdk_don_unadjusted.jpg)
 
 ')
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_2.Rmd")
+writeLines(markdown_content, "supplemental_information_3.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_2.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_3.Rmd", output_format = "pdf_document")
 ```
 
-## Supplemental Information 3
+## Supplemental Information 4
 
 ```{r}
 # Create the Markdown content
 markdown_content <- c("
 ---
-title: \"Supplemental Information 3\"
+title: \"Supplemental Information 4\"
 output: pdf_document
 ---
 
 ## Description
 
 Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for Fusarium head blight (FHB) disease resistance traits visual rating (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation at alpha equals 0.05 significance threshold. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map.
+
+\\pagebreak
+
 ")
 
 for(i in traits[c(grep("VR", traits),
@@ -3417,19 +3453,19 @@ for(i in traits[c(grep("VR", traits),
 }
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_3.Rmd")
+writeLines(markdown_content, "supplemental_information_4.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_3.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_4.Rmd", output_format = "pdf_document")
 ```
 
-## Supplemental Information 4
+## Supplemental Information 5
 
 ```{r}
 # Create the Markdown content
 markdown_content <- c('
 ---
-title: \"Supplemental Information 4\"
+title: \"Supplemental Information 5\"
 output: 
   pdf_document:
     extra_dependencies: ["geometry"]
@@ -3441,14 +3477,15 @@ geometry: landscape
 
 A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn from peak positions of significant quantitative trait locus (QTL) identified for Fusarium head blight (FHB) reaction traits visual rating (VR), Fusarium damaged kernels (FDK) and deoxynivalenol content (DON). Both multi-environmental (ME) and within-environment scans were mapped in this image. Within environment scans included the Cunningham Research Station in Kinston, North Carolina in 2019 (KIN2019) and 2020 (KIN2020); the Lake Wheeler Field Laboratory in Raleigh, North Carolina in 2019 (LW2019) and 2020 (LW2020), and the Eastern Agricultural Research and Extension Center in Warsaw Virginia in 2019 (VIR2019) and 2020 (VIR2020). Support intervals are denoted by bars to the right of linkage groups. The y-axis displays a scale for length of linkage groups in centimorgans (cM). Each linkage group is displayed as a series of points (markers) and a connecting line (distance between markers). The length and position of the bar denotes the length and position of the QTL on the resultant linkage group, which is denoted by the title above the linkage group (e.g., 1A). The color of the corresponding support interval denotes the corresponding scan to which that interval belongs (e.g., visual rating across environments = VR_ME).
 
+\\pagebreak
 
 ![](support_intervals_vr_fdk_don_with_adjustment.jpg)
 
 ')
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_4.Rmd")
+writeLines(markdown_content, "supplemental_information_5.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_4.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_5.Rmd", output_format = "pdf_document")
 ```
