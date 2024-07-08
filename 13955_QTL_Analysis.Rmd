@@ -131,15 +131,9 @@ traits <- colnames(pheno)[8:12]
 # Create dataframe for means output
 BLUEs_loc <- data.frame(GENOTYPE = unique(pheno$GENOTYPE))
 
-# Check normality
-for (i in traits) {
-  hist(pheno[[i]], main = i)
-}
-
 # Run models for each environment
 for (i in env) {
   for (j in traits) {
-    
     # Print message
     print_message <- paste("### Analyzing", j, "in", i, "###")
     print(paste(rep("#", nchar(print_message)), collapse = ""))
@@ -157,9 +151,7 @@ for (i in env) {
       remove(pheno_subset)
       next
     }
-    
     if (j %in% c("FHB", "FDK", "DON")) {
-      
       # Run model and pull estimates
       fit <- asreml(fixed = Y ~ GENOTYPE,
                     random = ~ REP,
@@ -170,31 +162,44 @@ for (i in env) {
       
       # Check if model converges and if it doesn't, default to RCBD with normal distribution
       if (fit$converge == FALSE | (i == "WAR20" & j == "FHB")) {
+        # Fit model
         fit <- asreml(fixed = Y ~ GENOTYPE,
                       random = ~ REP,
                       residual = ~ units,
                       data = pheno_subset,
                       maxit = 75)
+        # Update model
         fit <- update.asreml(fit)
       }
       
-      pred <- predict(fit, classify = "GENOTYPE", maxit = 75)$pvals[, c("GENOTYPE", "predicted.value")]
-      colnames(pred)[2] <- paste(j, "_", i, sep = "")
-      BLUEs_loc <- left_join(BLUEs_loc, pred, by = "GENOTYPE")
+      # Get quick summary      
+      print(summary(fit))
+      print(plot(fit))
       
+      # Pull BLUEs
+      pred <- predict(fit, classify = "GENOTYPE", maxit = 75)$pvals[, c("GENOTYPE", "predicted.value")]
+      
+      # Rename
+      colnames(pred)[2] <- paste(j, "_", i, sep = "")
+      
+      # Bind
+      BLUEs_loc <- left_join(BLUEs_loc, pred, by = "GENOTYPE")
     } else {
-     
       # Run model and pull estimates 
       fit <- asreml(fixed = Y ~ GENOTYPE,
                     random = ~ REP,
                     residual = ~ units,
                     data = pheno_subset)
-      pred <- predict(fit, classify = "GENOTYPE")$pvals[, c("GENOTYPE", "predicted.value")]
-      colnames(pred)[2] <- paste(j, "_", i, sep = "")
-      BLUEs_loc <- left_join(BLUEs_loc, pred, by = "GENOTYPE")      
       
+      # Get BLUEs
+      pred <- predict(fit, classify = "GENOTYPE")$pvals[, c("GENOTYPE", "predicted.value")]
+      
+      # Rename
+      colnames(pred)[2] <- paste(j, "_", i, sep = "")
+      
+      # Bind
+      BLUEs_loc <- left_join(BLUEs_loc, pred, by = "GENOTYPE")      
     }
-    
     # Remove temporary objects
     remove(pheno_subset, fit, pred)
   }
@@ -248,6 +253,10 @@ for (i in traits) {
       
   }
   
+  # Get quick summary
+  print(summary(fit))
+  print(plot(fit))
+
   # Get predictions
   pred <- predict(fit, classify = "GENOTYPE")$pvals[, 1:2]
   colnames(pred)[2] <- paste(i, "ME", sep = "_") 
@@ -743,7 +752,7 @@ for (i in traits){
                    model = "normal", 
                    method = "hk", 
                    n.perm = nperms, 
-                   n.cluster = detectCores()-1) #set threshold
+                   n.cluster = parallel::detectCores()-1) #set threshold
   print("Done")
   
   # Plot QTL Scan
@@ -2127,7 +2136,7 @@ for (i in traits){
                    model = "normal", 
                    method = "hk", 
                    n.perm = nperms, 
-                   n.cluster = detectCores()-1) #set threshold
+                   n.cluster = parallel::detectCores()-1) #set threshold
   print("Done")
   
   # Plot QTL Scan
@@ -2985,7 +2994,7 @@ a
 
 # Save output
 ggsave(plot = a,
-       filename = "support_intervals_vr_fdk_don_with_adjustment.jpg",
+       filename = "support_intervals_vr_fdk_don_with_adjustment_ME_only.jpg",
        width = 20,
        height = 15,
        dpi = 320,
@@ -3085,6 +3094,13 @@ write.csv(qtl_info_full_adj,
           row.names = FALSE)
 ```
 
+# Save analysis image
+
+```{r}
+# Save image
+save.image("Final_Analysis.RData")
+```
+
 # Create marker table
 
 ```{r}
@@ -3095,7 +3111,7 @@ GAWN_2015 <- readxl::read_excel("2015 5ST MDXN GAWN SUN Marker Report.xlsx",
                                 .name_repair = 'minimal')
 GAWN_2015 <- GAWN_2015[, colSums(is.na(GAWN_2015)) != nrow(GAWN_2015)]
 GAWN_2015 <- GAWN_2015[,-c(1:4)]
-GAWN_2015 <- GAWN_2015[GAWN_2015$`Cultivar/Designation`=="GA06493-13LE6",]
+GAWN_2015 <- as.data.frame(GAWN_2015[GAWN_2015$`Cultivar/Designation`=="GA06493-13LE6",])
 
 # Second report
 SUWWSN_2016 <- readxl::read_excel("2016 NUWWSN PNUWWSN SUWWSN Marker Report.xlsx",
@@ -3104,7 +3120,7 @@ SUWWSN_2016 <- readxl::read_excel("2016 NUWWSN PNUWWSN SUWWSN Marker Report.xlsx
                                   .name_repair = 'minimal')
 SUWWSN_2016 <- SUWWSN_2016[, colSums(is.na(SUWWSN_2016)) != nrow(SUWWSN_2016)]
 SUWWSN_2016 <- SUWWSN_2016[,-c(1:4)]
-SUWWSN_2016 <- SUWWSN_2016[SUWWSN_2016$`Cultivar/Designation`=="NC13-20076",]
+SUWWSN_2016 <- as.data.frame(SUWWSN_2016[SUWWSN_2016$`Cultivar/Designation`=="NC13-20076",])
 
 # Select calls
 GAWN_2015 <- GAWN_2015[,c(1, 
@@ -3115,32 +3131,244 @@ SUWWSN_2016 <- SUWWSN_2016[,c(1,
                               grep("RHT", colnames(SUWWSN_2016), ignore.case = TRUE),
                               grep("PPD", colnames(SUWWSN_2016), ignore.case = TRUE),
                               grep("VRN", colnames(SUWWSN_2016), ignore.case = TRUE))]
+
+# Format
+GAWN_2015 <- GAWN_2015[1,c(1:6, 9:ncol(GAWN_2015))] 
+GAWN_2015[1,1:ncol(GAWN_2015)] <- c("GA06493-13LE6",
+                                    "Tall",
+                                    "Dwarf",
+                                    "Photoperiod Sensitive", 
+                                    "Photoperiod Sensitive",
+                                    "Photoperiod Insensitive",
+                                    "Long Vernalization",
+                                    "Long Vernalization",
+                                    "Long Vernalization")
+SUWWSN_2016 <- SUWWSN_2016[1,c(1:6, 10:ncol(SUWWSN_2016))]
+SUWWSN_2016[1,] <- c("NC13-20076",
+                     "Tall",
+                     "Dwarf",
+                     "Photoperiod Sensitive", 
+                     "Photoperiod Sensitive",
+                     "Photoperiod Insensitive",
+                     "Short Vernalization (2 Copies)",
+                     "Long Vernalization",
+                     "Long Vernalization")
+
+# Marker Report
+marker_report <- rbind(SUWWSN_2016, GAWN_2015)
+marker_report <- as.data.frame(t(marker_report))
+colnames(marker_report) <- marker_report[1,]
+marker_report <- marker_report[-1,]
+marker_report$Gene <- rownames(marker_report)
+marker_report <- marker_report[, c("Gene", "NC13-20076", "GA06493-13LE6")]
+rownames(marker_report) <- NULL
+write.csv(marker_report,
+          "parental_marker_report.csv",
+          row.names = FALSE)
 ```
 
 # Make markdowns of supplemental material
+
+## Supplemental Information 1
 
 ```{r}
 # Create the Markdown content
 markdown_content <- c("
 ---
-title: \"Sample Document\"
+title: \"Supplemental Information 1\"
 output: pdf_document
 ---
 
-## Introduction
+## Description
 
-This is a sample document.
-
-![A sample picture](image.png)
-
-## Conclusion
-
-This is the end of the document.
+Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for heading date (HD) and plant height (PH), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). Presented are the results of scans performed without heading date and plant height marker covariates. In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation significance threshold at alpha equals 0.05. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map.
 ")
 
+for(i in traits){
+  # Pull files
+  temp1 <- list.files()
+  
+  # Grep files out
+  temp1 <- temp1[grep(i, temp1)]
+  temp1 <- temp1[grep(".jpg", temp1)]
+  temp1 <- temp1[-grep("adjustment", temp1, ignore.case = TRUE)]
+  
+  # Make new line 
+  temp2 <- unlist(str_split(i, "_"))
+  temp2[temp2=="HD"] <- "Heading Date"
+  temp2[temp2=="PH"] <- "Plant Height"
+  temp2[temp2=="VR"] <- "Visual Ratings"
+  temp2[temp2=="FDK"] <- "Fusarium Damaged Kernels"
+  temp2[temp2=="DON"] <- "Deoxynivalenol Content"
+  temp2[temp2=="KIN19"] <- "Kinston, NC - 2019"
+  temp2[temp2=="KIN20"] <- "Kinston, NC - 2020"
+  temp2[temp2=="RAL19"] <- "Raleigh, NC - 2019"
+  temp2[temp2=="RAL20"] <- "Raleigh, NC - 2020"
+  temp2[temp2=="WAR19"] <- "Warsaw, VA - 2019"
+  temp2[temp2=="WAR20"] <- "Warsaw, VA - 2020"
+  temp2[temp2=="ME"] <- "All Environments"
+  
+  # Create new line for markdown
+  temp3 <- c("\n",
+             paste("##", temp2[1], ifelse(temp2[2]=="All Environments", "Across" ,"in"), temp2[2]))
+  
+  # Add to that line
+  for(j in temp1){
+    # Add that line
+    temp4 <- c(paste("![j](",j,")", sep = ""))
+    
+    # Bind in
+    temp3 <- c(temp3, temp4)
+    
+    # Remove
+    remove(temp4)
+  }
+  
+  # Bind in
+  markdown_content <- c(markdown_content, temp3)
+  
+  # Bind in new page break
+  markdown_content <- c(markdown_content, "\\pagebreak")
+  
+  # Remove
+  remove(temp1, temp2, temp3)
+}
+
 # Write the Markdown content to a file
-writeLines(markdown_content, "test.Rmd")
+writeLines(markdown_content, "supplemental_information_1.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("test.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_1.Rmd", output_format = "pdf_document")
+```
+
+## Supplemental Information 2
+
+```{r}
+# Create the Markdown content
+markdown_content <- c('
+---
+title: \"Supplemental Information 2\"
+output: 
+  pdf_document:
+    extra_dependencies: ["geometry"]
+    latex_engine: xelatex
+geometry: landscape
+---
+
+## Description
+
+A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn from peak positions of significant quantitative trait locus (QTL) identified for plant height (PH), heading date (HD), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content. This is a nieve model that does not include marker covariates. Both multi-environmental (ME) and within-environment scans were mapped in this image. Within environment scans included the Cunningham Research Station in Kinston, North Carolina in 2019 (KIN19) and 2020 (KIN20); the Lake Wheeler Field Laboratory in Raleigh, North Carolina in 2019 (RAL19) and 2020 (RAL20), and the Eastern Agricultural Research and Extension Center in Warsaw Virginia in 2019 (WAR19) and 2020 (WAR20). Support intervals are denoted by bars to the right of linkage groups. The y-axis displays a scale for length of linkage groups in centimorgans (cM). Each linkage group is displayed as a series of points (markers) and a connecting line (distance between markers). The length and position of the bar denotes the length and position of the QTL on the resultant linkage group, which is denoted by the title above the linkage group (e.g., 1B). The color of the corresponding support interval denotes the corresponding scan to which that interval belongs (e.g., heading date across environments = HD_ME). Markers labeled by green triangles denote peak QTL positions used as covariates in scans for visual rating of Fusarium head blight infection, Fusarium damaged kernels, and deoxynivalenol content. Covariate markers were selected based on their repeated occurrence across scans and their appearance in the multi-environmental scans of both plant height and heading date. 
+
+
+![](support_intervals_hd_ph_vr_fdk_don_unadjusted.jpg)
+
+')
+
+# Write the Markdown content to a file
+writeLines(markdown_content, "supplemental_information_2.Rmd")
+
+# Render the Markdown file to PDF
+rmarkdown::render("supplemental_information_2.Rmd", output_format = "pdf_document")
+```
+
+## Supplemental Information 3
+
+```{r}
+# Create the Markdown content
+markdown_content <- c("
+---
+title: \"Supplemental Information 3\"
+output: pdf_document
+---
+
+## Description
+
+Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for Fusarium head blight (FHB) disease resistance traits visual rating (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation at alpha equals 0.05 significance threshold. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map.
+")
+
+for(i in traits[c(grep("VR", traits),
+                  grep("FDK", traits),
+                  grep("DON", traits))]){
+  # Pull files
+  temp1 <- list.files()
+  
+  # Grep files out
+  temp1 <- temp1[grep(i, temp1)]
+  temp1 <- temp1[grep(".jpg", temp1)]
+  temp1 <- temp1[grep("adjustment", temp1, ignore.case = TRUE)]
+  
+  # Make new line 
+  temp2 <- unlist(str_split(i, "_"))
+  temp2[temp2=="VR"] <- "Visual Ratings"
+  temp2[temp2=="FDK"] <- "Fusarium Damaged Kernels"
+  temp2[temp2=="DON"] <- "Deoxynivalenol Content"
+  temp2[temp2=="KIN19"] <- "Kinston, NC - 2019"
+  temp2[temp2=="KIN20"] <- "Kinston, NC - 2020"
+  temp2[temp2=="RAL19"] <- "Raleigh, NC - 2019"
+  temp2[temp2=="RAL20"] <- "Raleigh, NC - 2020"
+  temp2[temp2=="WAR19"] <- "Warsaw, VA - 2019"
+  temp2[temp2=="WAR20"] <- "Warsaw, VA - 2020"
+  temp2[temp2=="ME"] <- "All Environments"
+  
+  # Create new line for markdown
+  temp3 <- c("\n",
+             paste("##", temp2[1], ifelse(temp2[2]=="All Environments", "Across" ,"in"), temp2[2]))
+  
+  # Add to that line
+  for(j in temp1){
+    # Add that line
+    temp4 <- c(paste("![j](",j,")", sep = ""))
+    
+    # Bind in
+    temp3 <- c(temp3, temp4)
+    
+    # Remove
+    remove(temp4)
+  }
+  
+  # Bind in
+  markdown_content <- c(markdown_content, temp3)
+  
+  # Bind in new page break
+  markdown_content <- c(markdown_content, "\\pagebreak")
+  
+  # Remove
+  remove(temp1, temp2, temp3)
+}
+
+# Write the Markdown content to a file
+writeLines(markdown_content, "supplemental_information_3.Rmd")
+
+# Render the Markdown file to PDF
+rmarkdown::render("supplemental_information_3.Rmd", output_format = "pdf_document")
+```
+
+## Supplemental Information 4
+
+```{r}
+# Create the Markdown content
+markdown_content <- c('
+---
+title: \"Supplemental Information 4\"
+output: 
+  pdf_document:
+    extra_dependencies: ["geometry"]
+    latex_engine: xelatex
+geometry: landscape
+---
+
+## Description
+
+A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn from peak positions of significant quantitative trait locus (QTL) identified for Fusarium head blight (FHB) reaction traits visual rating (VR), Fusarium damaged kernels (FDK) and deoxynivalenol content (DON). Both multi-environmental (ME) and within-environment scans were mapped in this image. Within environment scans included the Cunningham Research Station in Kinston, North Carolina in 2019 (KIN2019) and 2020 (KIN2020); the Lake Wheeler Field Laboratory in Raleigh, North Carolina in 2019 (LW2019) and 2020 (LW2020), and the Eastern Agricultural Research and Extension Center in Warsaw Virginia in 2019 (VIR2019) and 2020 (VIR2020). Support intervals are denoted by bars to the right of linkage groups. The y-axis displays a scale for length of linkage groups in centimorgans (cM). Each linkage group is displayed as a series of points (markers) and a connecting line (distance between markers). The length and position of the bar denotes the length and position of the QTL on the resultant linkage group, which is denoted by the title above the linkage group (e.g., 1A). The color of the corresponding support interval denotes the corresponding scan to which that interval belongs (e.g., visual rating across environments = VR_ME).
+
+
+![](support_intervals_vr_fdk_don_with_adjustment.jpg)
+
+')
+
+# Write the Markdown content to a file
+writeLines(markdown_content, "supplemental_information_4.Rmd")
+
+# Render the Markdown file to PDF
+rmarkdown::render("supplemental_information_4.Rmd", output_format = "pdf_document")
 ```
