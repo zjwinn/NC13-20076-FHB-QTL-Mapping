@@ -25,79 +25,155 @@ library(patchwork)
 
 
 # Write Brian's function
-format_qtlmap_geno <- function(bed, par_a, par_b, rm_het = TRUE, rm_miss = TRUE, include_pars = TRUE, out_fmt = "rqtl") {
+format_qtlmap_geno <- function(
+                               bed, # A 'bed' formatted file (from the function gaston::read.vcf()) 
+                               par_a, # Name of parent A (must be listed in bed file IDs)
+                               par_b, # Name of parent B (must be listed in bed file IDs)
+                               rm_het = TRUE, # If you want heterozygous calls removed
+                               rm_miss = TRUE, # If you want missing data removed
+                               include_pars = TRUE, # If you want to include the parents in the final dataframe
+                               out_fmt = "rqtl" # What type of output you want to make 
+                               ) {
+  ### Sanity Checks ###
+  # If parent a is not found in the bed file
   if (!(par_a %in% bed@ped$id)) {
+    # Then throw error and stop
     stop("Parent A is not present in supplied bed matrix")
   }
+  # If parent b is not found in the bed file 
   if (!(par_b %in% bed@ped$id)) {
+    # Then throw error and stop
     stop("Parent B is not present in supplied bed matrix")
   }
+  # If rm_het, rm_miss, and include_pars are not logical arguments
   if (!(is.logical(rm_het) & is.logical(rm_miss) & is.logical(include_pars))) {
+    # Then throw error and stop
     stop("rm_het, rm_miss, and include_pars must be TRUE or FALSE")
   }
+  # If the output format listed is not icimapping nor rqtl
   if (!(out_fmt %in% c("icimapping", "rqtl"))) {
+    # Then throw error and stop
     stop("Please select either 'icimapping' or 'rqtl' for out_fmt")
   }
 
+  # Make a new dataframe from the bed matrix 
   genomat <- as.data.frame(t(gaston::as.matrix(bed)))
+  
+  # Create new dataframe from genomat that is called "parents:
   parents <- data.frame(
-    snp = rownames(genomat),
-    a = genomat[[par_a]],
-    b = genomat[[par_b]],
-    stringsAsFactors = FALSE
+    snp = rownames(genomat), # Name of the snps
+    a = genomat[[par_a]], # Parent A genotype
+    b = genomat[[par_b]], # Parent B genotype
+    stringsAsFactors = FALSE # Make sure the strings are not factors
   )
+  
+  # Sum the parent haplotypes
   parents$sum <- parents$a + parents$b
 
+  # Make a null object called drop_snps
   drop_snps <- NULL
+  
+  # Pull the union of SNPs that are the same between the parents
   drop_snps <- union(drop_snps, parents$snp[parents$a == parents$b])
+  
+  # If the user has indicated to remove hets
   if (rm_het) {
+    # Then add those to the list of snps to drop
     drop_snps <- union(drop_snps, parents$snp[parents$a == 1 | parents$b == 1])
   } else {
+    # Drop the snps where one parent is het and the other is missing
     drop_snps <- union(drop_snps, parents$snp[is.na(parents$a) & parents$b == 1])
     drop_snps <- union(drop_snps, parents$snp[parents$a == 1 & is.na(parents$b)])
   }
+  
+  # If the user has indicated to remove missing data
   if (rm_miss) {
+    # Then add those markers with missing data in either parents to the list
     drop_snps <- union(drop_snps, parents$snp[is.na(parents$a) | is.na(parents$b)])
   } else {
+    # Drop the snps where one parent has missing data to reduce ambiguity
     drop_snps <- union(drop_snps, parents$snp[is.na(parents$a) & is.na(parents$b)])
   }
 
+  # Drop snps from genomat that are in drop_snps
   genomat <- genomat[!rownames(genomat) %in% drop_snps, ]
+  
+  # Do this for the bed file as well
   bed@snps <- bed@snps[!bed@snps$id %in% drop_snps, ]
 
+  # Make an object of the snps where parent a is the minor allele 
   flip <- parents$snp[parents$a == 2]
+  
+  # Get a list of snps that are equal to zero for parent b and the sum is incalculable
   flip <- union(flip, parents$snp[is.na(parents$sum) & parents$b == 0])
+  
+  # Get a list of snps that are equal to 0 in the b parent and the sum is 1
   flip <- union(flip, parents$snp[parents$sum == 1 & parents$b == 0])
+  
+  # Drop any NAs from the flip vector
   flip <- flip[!is.na(flip)]
 
+  # Any marker feautred in the flip vector will be turned into the parent A call
   genomat[flip, ] <- genomat[flip, ] - 2
+  
+  # We then take the absolute value so that |0-2|=2 for what was the major allele for the B parent
   genomat <- abs(genomat)
 
+  # If the user indicated that they want to keep the parents in the resulting output
   if (include_pars) {
+    # Make a vector of the names of all others in the population
     colorder <- setdiff(colnames(genomat), c(par_a, par_b))
+    
+    # Make a vector for column order so that the parents show up at the front
     colorder <- c(par_a, par_b, colorder)
+    
+    # Order the genotyping matrix as such
     genomat <- genomat[colorder]
   } else {
+    # Get rid of both parents in the genotyping matrix
     genomat[c(par_a, par_b)] <- NULL
   }
 
+  # Make a new column called id in the genotyping matrix
   genomat$id <- rownames(genomat)
 
+  # If the user wants a genotyping matrix in the format acceptable to icimapping
   if (out_fmt == "icimapping") {
+    # Then subtract everything by 1 so that the matrix is c(-1,0,1) coded
     genomat[is.na(genomat)] <- -1
+    
+    # Pull the id, chromosome, position, ref and alt alleles from the bed matrix
     id_df <- bed@snps[c("id", "chr", "dist", "pos", "A1", "A2")]
+    
+    # Merge that with the final output
     out_df <- merge(id_df, genomat, by = "id")
   } else {
+    # Code 0 as A
     genomat[genomat == 0] <- "A"
+    
+    # Code 2 as B
     genomat[genomat == 2] <- "B"
+    
+    # Code 1 as H
     genomat[genomat == 1] <- "H"
+    
+    # Code NA as -
     genomat[is.na(genomat)] <- "-"
+    
+    # Make a new dataframe with id, chromosome, and dist
     id_df <- bed@snps[c("id", "chr", "dist")]
+    
+    # merge that with genomat
     out_df <- merge(id_df, genomat, by = "id")
+    
+    # make empty spaces
     names(out_df)[2:3] <- ""
   }
-
+  
+  # make an outlist of the genotyping matrix and a vector of the markers that were flipped 
   out_list <- list(abh = out_df, flipped = flip)
+  
+  # Return that output to the user
   return(out_list)
 }
 ```
