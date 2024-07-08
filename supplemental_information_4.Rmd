@@ -1,0 +1,161 @@
+
+---
+title: "Supplemental Information 4"
+output: pdf_document
+---
+
+## Description
+
+Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for Fusarium head blight (FHB) disease resistance traits visual rating (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation at alpha equals 0.05 significance threshold. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map.
+
+\pagebreak
+
+
+
+
+## Visual Ratings Across All Environments
+![j](Scan_IM_VR_ME_With_Adjustment.jpg)
+![j](Scan_MQM1_VR_ME_With_Adjustment.jpg)
+![j](Scan_MQM2_VR_ME_With_Adjustment.jpg)
+\pagebreak
+
+
+## Visual Ratings in Kinston, NC - 2019
+![j](Scan_IM_VR_KIN19_With_Adjustment.jpg)
+![j](Scan_MQM1_VR_KIN19_With_Adjustment.jpg)
+\pagebreak
+
+
+## Visual Ratings in Kinston, NC - 2020
+![j](Scan_IM_VR_KIN20_With_Adjustment.jpg)
+![j](Scan_MQM1_VR_KIN20_With_Adjustment.jpg)
+![j](Scan_MQM2_VR_KIN20_With_Adjustment.jpg)
+![j](Scan_MQM3_VR_KIN20_With_Adjustment.jpg)
+\pagebreak
+
+
+## Visual Ratings in Raleigh, NC - 2019
+![j](Scan_IM_VR_RAL19_With_Adjustment.jpg)
+![j](Scan_MQM1_VR_RAL19_With_Adjustment.jpg)
+![j](Scan_MQM2_VR_RAL19_With_Adjustment.jpg)
+\pagebreak
+
+
+## Visual Ratings in Raleigh, NC - 2020
+![j](Scan_IM_VR_RAL20_With_Adjustment.jpg)
+![j](Scan_MQM1_VR_RAL20_With_Adjustment.jpg)
+\pagebreak
+
+
+## Visual Ratings in Warsaw, VA - 2020
+![j](Scan_IM_VR_WAR20_With_Adjustment.jpg)
+![j](Scan_MQM1_VR_WAR20_With_Adjustment.jpg)
+![j](Scan_MQM2_VR_WAR20_With_Adjustment.jpg)
+\pagebreak
+
+
+## Fusarium Damaged Kernels Across All Environments
+![j](Scan_IM_FDK_ME_With_Adjustment.jpg)
+![j](Scan_MQM1_FDK_ME_With_Adjustment.jpg)
+![j](Scan_MQM2_FDK_ME_With_Adjustment.jpg)
+![j](Scan_MQM3_FDK_ME_With_Adjustment.jpg)
+![j](Scan_MQM4_FDK_ME_With_Adjustment.jpg)
+\pagebreak
+
+
+## Fusarium Damaged Kernels in Kinston, NC - 2019
+![j](Scan_IM_FDK_KIN19_With_Adjustment.jpg)
+![j](Scan_MQM1_FDK_KIN19_With_Adjustment.jpg)
+![j](Scan_MQM2_FDK_KIN19_With_Adjustment.jpg)
+![j](Scan_MQM3_FDK_KIN19_With_Adjustment.jpg)
+\pagebreak
+
+
+## Fusarium Damaged Kernels in Kinston, NC - 2020
+![j](Scan_IM_FDK_KIN20_With_Adjustment.jpg)
+![j](Scan_MQM1_FDK_KIN20_With_Adjustment.jpg)
+\pagebreak
+
+
+## Fusarium Damaged Kernels in Raleigh, NC - 2019
+![j](Scan_IM_FDK_RAL19_With_Adjustment.jpg)
+![j](Scan_MQM1_FDK_RAL19_With_Adjustment.jpg)
+![j](Scan_MQM2_FDK_RAL19_With_Adjustment.jpg)
+![j](Scan_MQM3_FDK_RAL19_With_Adjustment.jpg)
+\pagebreak
+
+
+## Fusarium Damaged Kernels in Raleigh, NC - 2020
+![j](Scan_IM_FDK_RAL20_With_Adjustment.jpg)
+![j](Scan_MQM1_FDK_RAL20_With_Adjustment.jpg)
+![j](Scan_MQM2_FDK_RAL20_With_Adjustment.jpg)
+![j](Scan_MQM3_FDK_RAL20_With_Adjustment.jpg)
+\pagebreak
+
+
+## Fusarium Damaged Kernels in Warsaw, VA - 2019
+![j](Scan_IM_FDK_WAR19_With_Adjustment.jpg)
+![j](Scan_MQM1_FDK_WAR19_With_Adjustment.jpg)
+![j](Scan_MQM2_FDK_WAR19_With_Adjustment.jpg)
+\pagebreak
+
+
+## Fusarium Damaged Kernels in Warsaw, VA - 2020
+![j](Scan_IM_FDK_WAR20_With_Adjustment.jpg)
+![j](Scan_MQM1_FDK_WAR20_With_Adjustment.jpg)
+![j](Scan_MQM2_FDK_WAR20_With_Adjustment.jpg)
+\pagebreak
+
+
+## Deoxynivalenol Content Across All Environments
+![j](Scan_IM_DON_ME_With_Adjustment.jpg)
+![j](Scan_MQM1_DON_ME_With_Adjustment.jpg)
+![j](Scan_MQM2_DON_ME_With_Adjustment.jpg)
+![j](Scan_MQM3_DON_ME_With_Adjustment.jpg)
+\pagebreak
+
+
+## Deoxynivalenol Content in Kinston, NC - 2019
+![j](Scan_IM_DON_KIN19_With_Adjustment.jpg)
+![j](Scan_MQM1_DON_KIN19_With_Adjustment.jpg)
+![j](Scan_MQM2_DON_KIN19_With_Adjustment.jpg)
+![j](Scan_MQM3_DON_KIN19_With_Adjustment.jpg)
+\pagebreak
+
+
+## Deoxynivalenol Content in Kinston, NC - 2020
+![j](Scan_IM_DON_KIN20_With_Adjustment.jpg)
+![j](Scan_MQM1_DON_KIN20_With_Adjustment.jpg)
+![j](Scan_MQM2_DON_KIN20_With_Adjustment.jpg)
+![j](Scan_MQM3_DON_KIN20_With_Adjustment.jpg)
+\pagebreak
+
+
+## Deoxynivalenol Content in Raleigh, NC - 2019
+![j](Scan_IM_DON_RAL19_With_Adjustment.jpg)
+![j](Scan_MQM1_DON_RAL19_With_Adjustment.jpg)
+![j](Scan_MQM2_DON_RAL19_With_Adjustment.jpg)
+\pagebreak
+
+
+## Deoxynivalenol Content in Raleigh, NC - 2020
+![j](Scan_IM_DON_RAL20_With_Adjustment.jpg)
+![j](Scan_MQM1_DON_RAL20_With_Adjustment.jpg)
+![j](Scan_MQM2_DON_RAL20_With_Adjustment.jpg)
+![j](Scan_MQM3_DON_RAL20_With_Adjustment.jpg)
+\pagebreak
+
+
+## Deoxynivalenol Content in Warsaw, VA - 2019
+![j](Scan_IM_DON_WAR19_With_Adjustment.jpg)
+![j](Scan_MQM1_DON_WAR19_With_Adjustment.jpg)
+![j](Scan_MQM2_DON_WAR19_With_Adjustment.jpg)
+![j](Scan_MQM3_DON_WAR19_With_Adjustment.jpg)
+\pagebreak
+
+
+## Deoxynivalenol Content in Warsaw, VA - 2020
+![j](Scan_IM_DON_WAR20_With_Adjustment.jpg)
+![j](Scan_MQM1_DON_WAR20_With_Adjustment.jpg)
+![j](Scan_MQM2_DON_WAR20_With_Adjustment.jpg)
+\pagebreak
