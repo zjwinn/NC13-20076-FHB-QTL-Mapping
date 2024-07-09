@@ -10,6 +10,6 @@ Visualization of linkage map marker centimorgan (cM) versus megabase pair (Mbp) 
 
 \pagebreak
 
-![image of cM vs Mbp](cM_vs_bp_comparison.jpg)
+![image of cM vs Mbp](\./results_images/cM_vs_bp_comparison.jpg)
 
 

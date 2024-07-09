@@ -25,7 +25,6 @@ library(knitr)
 library(ggplot2)
 library(patchwork)
 
-
 # Write Brian's function
 format_qtlmap_geno <- function(
                                bed, # A 'bed' formatted file (from the function gaston::read.vcf()) 
@@ -2155,6 +2154,13 @@ for(i in traits){
   d$name <- rownames(d)
   rownames(d) <- NULL
   
+  # Get effect estimates
+  d <- left_join(d,
+                 data.frame(name = names(b$ests$ests), 
+                            est_effect = b$ests$ests),
+                 by = "name") 
+
+  
   # Bind in data
   e <- results_HD_PH_VR_FDK_DON$final$qtl_support_intervals[[i]]
   
@@ -3117,8 +3123,8 @@ for(i in traits){
 }
 
 # Make an object for information
-qtl_info_drop_one_adj <- c()
-qtl_info_full_adj <- c()
+qtl_info_drop_one <- c()
+qtl_info_full <- c()
 
 # For i in final_qtls object
 for(i in traits){
@@ -3153,6 +3159,13 @@ for(i in traits){
   d$name <- rownames(d)
   rownames(d) <- NULL
   
+  # Get effect estimates
+  d <- left_join(d,
+                 data.frame(name = names(b$ests$ests), 
+                            est_effect = b$ests$ests),
+                 by = "name") 
+
+  
   # Bind in data
   e <- results_VR_FDK_DON$final$qtl_support_intervals[[i]]
   
@@ -3163,12 +3176,13 @@ for(i in traits){
   c$trait <- i
   
   # Bind in data
-  qtl_info_drop_one_adj <- rbind(qtl_info_drop_one_adj, d)
-  qtl_info_full_adj <- rbind(qtl_info_full_adj, c)
+  qtl_info_drop_one <- rbind(qtl_info_drop_one, d)
+  qtl_info_full <- rbind(qtl_info_full, c)
   
   # Remove
   remove(a,b,c,d,e)
 }
+
 
 # Write file
 write.csv(qtl_info_drop_one_adj,
@@ -3222,7 +3236,7 @@ SUWWSN_2016 <- SUWWSN_2016[,c(1,
 # Format
 GAWN_2015 <- GAWN_2015[1,c(1:6, 9:ncol(GAWN_2015))] 
 GAWN_2015[1,1:ncol(GAWN_2015)] <- c("GA06493-13LE6",
-                                    "Tall",
+                                    "Wild Type",
                                     "Dwarf",
                                     "Photoperiod Sensitive", 
                                     "Photoperiod Sensitive",
@@ -3232,7 +3246,7 @@ GAWN_2015[1,1:ncol(GAWN_2015)] <- c("GA06493-13LE6",
                                     "Long Vernalization")
 SUWWSN_2016 <- SUWWSN_2016[1,c(1:6, 10:ncol(SUWWSN_2016))]
 SUWWSN_2016[1,] <- c("NC13-20076",
-                     "Tall",
+                     "Wild Type",
                      "Dwarf",
                      "Photoperiod Sensitive", 
                      "Photoperiod Sensitive",
@@ -3254,7 +3268,413 @@ write.csv(marker_report,
           row.names = FALSE)
 ```
 
-e# Make markdowns of supplemental material
+# Create HD and PH QTL Table
+
+```{r}
+# Read table
+hd_ph_vr_fdk_don_table <- read.csv("hd_ph_vr_fdk_don_drop_one_qtl_info_no_adjustment.csv",
+                                   check.names = FALSE)
+
+# Subset data
+hd_ph_vr_fdk_don_table <- hd_ph_vr_fdk_don_table %>%
+  select(name, 
+         trait, 
+         chr, 
+         start_marker,
+         start,
+         mid_marker,
+         mid_pos,
+         stop_marker,
+         stop,
+         LOD,
+         `%var`,
+         est_effect) %>%
+  arrange(trait, chr, mid_pos)
+
+# Make edit
+hd_ph_vr_fdk_don_table_edit <-c()
+
+# Loop
+for(i in unique(hd_ph_vr_fdk_don_table$trait)){
+  # Pull the trait
+  temp1 <- hd_ph_vr_fdk_don_table[hd_ph_vr_fdk_don_table$trait==i,]
+  
+  # Loop 
+  for(j in unique(temp1$chr)){
+    # Pull all loci for that chromosome
+    temp2 <- temp1[temp1$chr==j, ]
+    
+    # Make string for multiple QTL
+    if(length(temp2$name) > 1){
+      temp2.1 <- paste(".", seq(1:length(temp2$name)), sep = "") 
+    }else{
+      temp2.1 <- ""
+    }
+    
+    # Rename the QTL based on location and trait
+    temp2$name <- paste("Q",
+                        ifelse(grepl("PH", unique(temp2$trait), ignore.case = TRUE),
+                               "Pht",
+                               ifelse(grepl("HD", unique(temp2$trait), ignore.case = TRUE),
+                                      "Hd",
+                                      ifelse(grepl("VR", unique(temp2$trait), ignore.case = TRUE),
+                                             "Fvr",
+                                             ifelse(grepl("FDK", unique(temp2$trait), ignore.case = TRUE),
+                                                    "Fdk",
+                                                    ifelse(grepl("DON", unique(temp2$trait), ignore.case = TRUE),
+                                                           "Don",
+                                                           "ERROR"))))),
+                        ".nc-",
+                        j,
+                        temp2.1,
+                        sep = "")
+    
+    # Remove string
+    remove(temp2.1)
+    
+    # Loop 
+    for (k in unique(temp2$name)){
+      # Pull data
+      temp2.2 <- temp2[temp2$name==k, "mid_marker"]
+      
+      # If the mid_marker is a sudo-position
+      if(grepl("loc", temp2.2, ignore.case = TRUE)){
+        temp2[temp2$name==k, "mid_marker"] <- find.marker(cross = cross_file,
+                                                          chr = temp2[temp2$name==k, "chr"],
+                                                          pos = temp2[temp2$name==k, "mid_pos"])
+      }
+      
+      # Remove
+      remove(temp2.2)
+    }
+    
+    # Add to new dataframe
+    if(j==unique(temp1$chr)[1]){
+      # Make new dataframe
+      temp3 <- temp2
+      
+      # Remove
+      remove(temp2)
+    }else{
+      # Bind onto new dataframe
+      temp3 <- rbind(temp3, temp2)
+      
+      # Remove
+      remove(temp2)
+    }
+  }
+  
+  # Rename 
+  temp3 <- temp3 %>%
+    separate(trait, into = c("Trait", "Environment"), sep = "_",  remove = TRUE) %>%
+    separate(start_marker, into = c("temp1", "Left Position (Mbp)"), sep = "_", remove = FALSE) %>%
+    separate(mid_marker, into = c("temp2", "Peak Position (Mbp)"), sep = "_", remove = FALSE) %>%    
+    separate(stop_marker, into = c("temp3", "Right Position (Mbp)"), sep = "_", remove = FALSE) %>%
+    rename(QTL = name,
+           Chromosome = chr,
+           `Left Marker` = start_marker,
+           `Left Position (cM)` = start,
+           `Peak Marker` = mid_marker,
+           `Peak Position (cM)` = mid_pos,
+           `Right Marker` = stop_marker,
+           `Right Position (cM)` = stop,
+           PV = `%var`,
+           Effect = est_effect) %>%
+    mutate(`Left Position (Mbp)` = round(as.numeric(`Left Position (Mbp)`)/1000000, 1),
+           `Peak Position (Mbp)` = round(as.numeric(`Peak Position (Mbp)`)/1000000, 1),
+           `Right Position (Mbp)` = round(as.numeric(`Right Position (Mbp)`)/1000000, 1),
+           `Left Position (cM)` = round(`Left Position (cM)`, 1),
+           `Peak Position (cM)` = round(`Peak Position (cM)`, 1),
+           `Right Position (cM)` = round(`Right Position (cM)`, 1)) %>%
+    select(QTL, 
+           Trait,
+           Environment, 
+           Chromosome,
+           `Left Marker`,
+           `Left Position (cM)`,
+           `Left Position (Mbp)`,           
+           `Peak Marker`,
+           `Peak Position (cM)`,
+           `Peak Position (Mbp)`,
+           `Right Marker`,
+           `Right Position (cM)`,
+           `Right Position (Mbp)`,
+           LOD,
+           PV,
+           Effect)
+  
+  # Bind in
+  hd_ph_vr_fdk_don_table_edit <- rbind(hd_ph_vr_fdk_don_table_edit,
+                                       temp3)
+  
+  # Remove
+  remove(temp1, temp3)
+
+}
+
+# Order
+hd_ph_vr_fdk_don_table_edit <- hd_ph_vr_fdk_don_table_edit %>%
+  arrange(Trait, Environment, Chromosome, `Peak Position (cM)`)
+
+# Write full table
+write.csv(hd_ph_vr_fdk_don_table_edit,
+          "hd_ph_vr_fdk_don_drop_one_qtl_info_no_adjustment_formatted.csv",
+          row.names = FALSE)
+
+# Subset only PH and HD
+hd_ph_table <- hd_ph_vr_fdk_don_table_edit %>%
+  filter(Trait %in% c("HD", "PH"))
+
+# Subset only ME
+hd_ph_table_me <- hd_ph_table %>%
+  filter(Environment=="ME") %>%
+  arrange(Chromosome, Trait, `Peak Position (cM)`) %>%
+  select(-Trait, -Environment)
+
+# Get counts across environments
+counts <- hd_ph_table %>%
+  filter(Environment!="ME") %>%
+  count(QTL)
+
+# Bind in those counts
+hd_ph_table_me <- hd_ph_table_me %>%
+  left_join(counts, by = "QTL") %>%
+  rename(N = n) %>%
+  select(QTL, N, everything())
+
+# Write table
+write.csv(hd_ph_table_me,
+          "hd_ph_me_formatted.csv",
+          row.names = FALSE)
+```
+
+# Create VR, FDK, and DON table
+
+```{r}
+# Read table
+vr_fdk_don_table <- read.csv("vr_fdk_don_with_adjust",
+                                   check.names = FALSE)
+
+# Subset data
+hd_ph_vr_fdk_don_table <- hd_ph_vr_fdk_don_table %>%
+  select(name, 
+         trait, 
+         chr, 
+         start_marker,
+         start,
+         mid_marker,
+         mid_pos,
+         stop_marker,
+         stop,
+         LOD,
+         `%var`,
+         est_effect) %>%
+  arrange(trait, chr, mid_pos)
+
+# Make edit
+hd_ph_vr_fdk_don_table_edit <-c()
+
+# Loop
+for(i in unique(hd_ph_vr_fdk_don_table$trait)){
+  # Pull the trait
+  temp1 <- hd_ph_vr_fdk_don_table[hd_ph_vr_fdk_don_table$trait==i,]
+  
+  # Loop 
+  for(j in unique(temp1$chr)){
+    # Pull all loci for that chromosome
+    temp2 <- temp1[temp1$chr==j, ]
+    
+    # Make string for multiple QTL
+    if(length(temp2$name) > 1){
+      temp2.1 <- paste(".", seq(1:length(temp2$name)), sep = "") 
+    }else{
+      temp2.1 <- ""
+    }
+    
+    # Rename the QTL based on location and trait
+    temp2$name <- paste("Q",
+                        ifelse(grepl("PH", unique(temp2$trait), ignore.case = TRUE),
+                               "Pht",
+                               ifelse(grepl("HD", unique(temp2$trait), ignore.case = TRUE),
+                                      "Hd",
+                                      ifelse(grepl("VR", unique(temp2$trait), ignore.case = TRUE),
+                                             "Fvr",
+                                             ifelse(grepl("FDK", unique(temp2$trait), ignore.case = TRUE),
+                                                    "Fdk",
+                                                    ifelse(grepl("DON", unique(temp2$trait), ignore.case = TRUE),
+                                                           "Don",
+                                                           "ERROR"))))),
+                        ".nc-",
+                        j,
+                        temp2.1,
+                        sep = "")
+    
+    # Remove string
+    remove(temp2.1)
+    
+    # Loop 
+    for (k in unique(temp2$name)){
+      # Pull data
+      temp2.2 <- temp2[temp2$name==k, "mid_marker"]
+      
+      # If the mid_marker is a sudo-position
+      if(grepl("loc", temp2.2, ignore.case = TRUE)){
+        temp2[temp2$name==k, "mid_marker"] <- find.marker(cross = cross_file,
+                                                          chr = temp2[temp2$name==k, "chr"],
+                                                          pos = temp2[temp2$name==k, "mid_pos"])
+      }
+      
+      # Remove
+      remove(temp2.2)
+    }
+    
+    # Add to new dataframe
+    if(j==unique(temp1$chr)[1]){
+      # Make new dataframe
+      temp3 <- temp2
+      
+      # Remove
+      remove(temp2)
+    }else{
+      # Bind onto new dataframe
+      temp3 <- rbind(temp3, temp2)
+      
+      # Remove
+      remove(temp2)
+    }
+  }
+  
+  # Rename 
+  temp3 <- temp3 %>%
+    separate(trait, into = c("Trait", "Environment"), sep = "_",  remove = TRUE) %>%
+    separate(start_marker, into = c("temp1", "Left Position (Mbp)"), sep = "_", remove = FALSE) %>%
+    separate(mid_marker, into = c("temp2", "Peak Position (Mbp)"), sep = "_", remove = FALSE) %>%    
+    separate(stop_marker, into = c("temp3", "Right Position (Mbp)"), sep = "_", remove = FALSE) %>%
+    rename(QTL = name,
+           Chromosome = chr,
+           `Left Marker` = start_marker,
+           `Left Position (cM)` = start,
+           `Peak Marker` = mid_marker,
+           `Peak Position (cM)` = mid_pos,
+           `Right Marker` = stop_marker,
+           `Right Position (cM)` = stop,
+           PV = `%var`,
+           Effect = est_effect) %>%
+    mutate(`Left Position (Mbp)` = round(as.numeric(`Left Position (Mbp)`)/1000000, 1),
+           `Peak Position (Mbp)` = round(as.numeric(`Peak Position (Mbp)`)/1000000, 1),
+           `Right Position (Mbp)` = round(as.numeric(`Right Position (Mbp)`)/1000000, 1),
+           `Left Position (cM)` = round(`Left Position (cM)`, 1),
+           `Peak Position (cM)` = round(`Peak Position (cM)`, 1),
+           `Right Position (cM)` = round(`Right Position (cM)`, 1)) %>%
+    select(QTL, 
+           Trait,
+           Environment, 
+           Chromosome,
+           `Left Marker`,
+           `Left Position (cM)`,
+           `Left Position (Mbp)`,           
+           `Peak Marker`,
+           `Peak Position (cM)`,
+           `Peak Position (Mbp)`,
+           `Right Marker`,
+           `Right Position (cM)`,
+           `Right Position (Mbp)`,
+           LOD,
+           PV,
+           Effect)
+  
+  # Bind in
+  hd_ph_vr_fdk_don_table_edit <- rbind(hd_ph_vr_fdk_don_table_edit,
+                                       temp3)
+  
+  # Remove
+  remove(temp1, temp3)
+
+}
+
+# Order
+hd_ph_vr_fdk_don_table_edit <- hd_ph_vr_fdk_don_table_edit %>%
+  arrange(Trait, Environment, Chromosome, `Peak Position (cM)`)
+
+# Write full table
+write.csv(hd_ph_vr_fdk_don_table_edit,
+          "hd_ph_vr_fdk_don_drop_one_qtl_info_no_adjustment_formatted.csv",
+          row.names = FALSE)
+
+# Subset only PH and HD
+hd_ph_table <- hd_ph_vr_fdk_don_table_edit %>%
+  filter(Trait %in% c("HD", "PH"))
+
+# Subset only ME
+hd_ph_table_me <- hd_ph_table %>%
+  filter(Environment=="ME") %>%
+  arrange(Chromosome, Trait, `Peak Position (cM)`) %>%
+  select(-Trait, -Environment)
+
+# Get counts across environments
+counts <- hd_ph_table %>%
+  filter(Environment!="ME") %>%
+  count(QTL)
+
+# Bind in those counts
+hd_ph_table_me <- hd_ph_table_me %>%
+  left_join(counts, by = "QTL") %>%
+  rename(N = n) %>%
+  select(QTL, N, everything())
+
+# Write table
+write.csv(hd_ph_table_me,
+          "hd_ph_me_formatted.csv",
+          row.names = FALSE)
+```
+
+# Move all files to relevant folders 
+
+```{r}
+# Create directory
+target_directory <- paste(getwd(), "results_images", sep = "/")
+dir.create(target_directory)
+
+# Get a list of files that are images
+files <- list.files()[grep("\\.jpg", list.files(), ignore.case = TRUE)]
+
+# Move into folder
+for(i in files){
+  # Get working directory
+  temp1 <- paste(getwd(), i, sep = "/")
+  
+  # Get target directory 
+  temp2 <- paste(target_directory, i, sep = "/")
+  
+  # Move the file
+  file.rename(from = temp1,
+              to = temp2)
+}
+
+# Create directory
+target_directory <- paste(getwd(), "results_csv_files", sep = "/")
+dir.create(target_directory)
+
+# Get a list of files that are images
+files <- list.files()[grep("\\.csv", list.files(), ignore.case = TRUE)]
+files <- files[!files %in% c("list_of_potential_selfs.csv",
+                             "NC13955_Combined_Data_Final.csv")]
+
+# Move into folder
+for(i in files){
+  # Get working directory
+  temp1 <- paste(getwd(), i, sep = "/")
+  
+  # Get target directory 
+  temp2 <- paste(target_directory, i, sep = "/")
+  
+  # Move the file
+  file.rename(from = temp1,
+              to = temp2)
+}
+```
+
+# Make markdowns of supplemental material
 
 ## Supplemental Information 1
 
@@ -3271,7 +3691,7 @@ Visualization of linkage map marker centimorgan (cM) versus megabase pair (Mbp) 
 
 \\pagebreak
 
-![image of cM vs Mbp](cM_vs_bp_comparison.jpg)
+![image of cM vs Mbp](\\./results_images/cM_vs_bp_comparison.jpg)
 
 ")
 
@@ -3331,7 +3751,7 @@ for(i in traits){
   # Add to that line
   for(j in temp1){
     # Add that line
-    temp4 <- c(paste("![j](",j,")", sep = ""))
+    temp4 <- c(paste("![j](\\./results_images/",j,")", sep = ""))
     
     # Bind in
     temp3 <- c(temp3, temp4)
@@ -3377,7 +3797,7 @@ A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn 
 
 \\pagebreak
 
-![](support_intervals_hd_ph_vr_fdk_don_unadjusted.jpg)
+![](\\./results_images/support_intervals_hd_ph_vr_fdk_don_unadjusted.jpg)
 
 ')
 
@@ -3437,7 +3857,7 @@ for(i in traits[c(grep("VR", traits),
   # Add to that line
   for(j in temp1){
     # Add that line
-    temp4 <- c(paste("![j](",j,")", sep = ""))
+    temp4 <- c(paste("![j](\\./results_images/",j,")", sep = ""))
     
     # Bind in
     temp3 <- c(temp3, temp4)
@@ -3483,7 +3903,7 @@ A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn 
 
 \\pagebreak
 
-![](support_intervals_vr_fdk_don_with_adjustment.jpg)
+![](\\./results_images/support_intervals_vr_fdk_don_with_adjustment.jpg)
 
 ')
 
