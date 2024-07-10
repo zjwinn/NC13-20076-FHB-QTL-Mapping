@@ -14,6 +14,6 @@ A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn 
 
 \pagebreak
 
-![](support_intervals_vr_fdk_don_with_adjustment.jpg)
+![](\./results_images/support_intervals_vr_fdk_don_with_adjustment.jpg)
 
 

@@ -11,7 +11,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Library and Write Function for R/qtl formatting
+# Library and write Function for R/qtl formatting
 
 ```{r}
 # Load necessary libraries
@@ -1446,6 +1446,7 @@ for(i in unique(d$chr)){
                        yend = stop, # Make the stop the end positoin
                        color = trait), # Make the color related to the trait 
                    linewidth = 2, # Set line width to 2
+                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
                    show.legend = TRUE)+ # Visualize QTL confidence intervals
       theme_classic()+ # Add the classic theme 
       theme(axis.title.x = element_blank(), # Get rid of the x-axis title
@@ -1617,6 +1618,7 @@ for(i in unique(d$chr)){
                        yend = stop, # Make the stop the end positoin
                        color = trait), # Make the color related to the trait 
                    linewidth = 2, # Set line width to 2
+                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
                    show.legend = TRUE)+ # Visualize QTL confidence intervals
       theme_classic()+ # Add the classic theme 
       theme(axis.title.x = element_blank(), # Get rid of the x-axis title
@@ -1811,6 +1813,7 @@ for(i in unique(d$chr)){
                        yend = stop, # Make the stop the end positoin
                        color = trait), # Make the color related to the trait 
                    linewidth = 2, # Set line width to 2
+                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
                    show.legend = TRUE)+ # Visualize QTL confidence intervals
       theme_classic()+ # Add the classic theme 
       theme(axis.title.x = element_blank(), # Get rid of the x-axis title
@@ -1998,6 +2001,7 @@ for(i in unique(d$chr)){
                        yend = stop, # Make the stop the end positoin
                        color = trait), # Make the color related to the trait 
                    linewidth = 2, # Set line width to 2
+                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
                    show.legend = TRUE)+ # Visualize QTL confidence intervals
       theme_classic()+ # Add the classic theme 
       theme(axis.title.x = element_blank(), # Get rid of the x-axis title
@@ -2815,6 +2819,7 @@ for(i in unique(d$chr)){
                        yend = stop, # Make the stop the end positoin
                        color = trait), # Make the color related to the trait 
                    linewidth = 2, # Set line width to 2
+                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
                    show.legend = TRUE)+ # Visualize QTL confidence intervals
       theme_classic()+ # Add the classic theme 
       theme(axis.title.x = element_blank(), # Get rid of the x-axis title
@@ -2851,6 +2856,7 @@ for(i in unique(d$chr)){
                        yend = stop, # Make the stop the end positoin
                        color = trait), # Make the color related to the trait 
                    linewidth = 2, # Set line width to 2
+                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
                    show.legend = TRUE)+ # Visualize QTL confidence intervals
       theme_classic()+ # Add the classic theme 
       theme(axis.title.x = element_blank(), # Get rid of the x-axis title
@@ -3000,6 +3006,7 @@ for(i in unique(d$chr)){
                        yend = stop, # Make the stop the end positoin
                        color = trait), # Make the color related to the trait 
                    linewidth = 2, # Set line width to 2
+                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
                    show.legend = TRUE)+ # Visualize QTL confidence intervals
       theme_classic()+ # Add the classic theme 
       theme(axis.title.x = element_blank(), # Get rid of the x-axis title
@@ -3036,6 +3043,7 @@ for(i in unique(d$chr)){
                        yend = stop, # Make the stop the end positoin
                        color = trait), # Make the color related to the trait 
                    linewidth = 2, # Set line width to 2
+                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
                    show.legend = TRUE)+ # Visualize QTL confidence intervals
       theme_classic()+ # Add the classic theme 
       theme(axis.title.x = element_blank(), # Get rid of the x-axis title
@@ -3692,7 +3700,7 @@ Visualization of linkage map marker centimorgan (cM) versus megabase pair (Mbp) 
 
 \\pagebreak
 
-![image of cM vs Mbp](\\./results_images/cM_vs_bp_comparison.jpg)
+![](\\./results_images/cM_vs_bp_comparison.jpg)
 
 ")
 
@@ -3710,12 +3718,16 @@ rmarkdown::render("supplemental_information_1.Rmd", output_format = "pdf_documen
 markdown_content <- c("
 ---
 title: \"Supplemental Information 2\"
-output: pdf_document
+output: 
+  pdf_document:
+    extra_dependencies: [\"geometry\"]
+    latex_engine: xelatex
+geometry: landscape
 ---
 
 ## Description
 
-Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for heading date (HD) and plant height (PH), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). Presented are the results of scans performed without heading date and plant height marker covariates. In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation significance threshold at alpha equals 0.05. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map.
+Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for heading date (HD) and plant height (PH), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). Presented are the results of scans performed without heading date and plant height marker covariates. In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation significance threshold at alpha equals 0.05. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map. All information regarding location, LOD and effect may be seen at the end of the document.
 
 \\pagebreak
 
@@ -3723,7 +3735,7 @@ Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans 
 
 for(i in traits){
   # Pull files
-  temp1 <- list.files()
+  temp1 <- list.files("./results_images")
   
   # Grep files out
   temp1 <- temp1[grep(i, temp1)]
@@ -3771,6 +3783,39 @@ for(i in traits){
   remove(temp1, temp2, temp3)
 }
 
+# Make a tail for the content
+tail_of_content <- c(
+"
+## QTL Scan Information
+
+The following table displays the output results of each scan from each environment by trait combination. Traits assessed are heading date (HD) and plant height (PH), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON). Environments assessed are Kinston, NC 2018-2019 (KIN19) and 2019-2020 (KIN20); Raleigh, NC 2018-2019 (RAL19) and 2019-2020 (RAL20); and Warsaw, VA 2018-2019 (WAR19) and 2019-2020 (WAR20). Multi-environment scans are denoted as \"ME\". The column \"QTL\" column denotes the name of the QTL, the trait to which it belongs (e.g., Hd=HD, Pht=PH, Fvr=VR, Fdk=FDK, Don=DON) and what chromosome on which the QTL is located. 
+
+\\tiny
+
+```{r, echo = FALSE}
+library(knitr)
+library(rmarkdown)
+suppressMessages(library(tidyverse))
+
+a <- read.csv(\"./results_csv_files/hd_ph_vr_fdk_don_drop_one_qtl_info_no_adjustment_formatted.csv\", check.names = FALSE)
+a <- a %>% 
+  arrange(Trait, Environment, Chromosome, `Peak Position (cM)`) %>% 
+  select(-`Left Marker`,
+         -`Left Position (Mbp)`,
+         -`Peak Marker`, 
+         -`Peak Position (Mbp)`,
+         -`Right Marker`,
+         -`Right Position (Mbp)`,
+         -Chromosome,
+         -Trait)
+knitr::kable(a, align = 'c', digits = 2)
+remove(a)
+```"
+)
+
+# Bind in the tail
+markdown_content <- c(markdown_content, tail_of_content)
+
 # Write the Markdown content to a file
 writeLines(markdown_content, "supplemental_information_2.Rmd")
 
@@ -3816,7 +3861,11 @@ rmarkdown::render("supplemental_information_3.Rmd", output_format = "pdf_documen
 markdown_content <- c("
 ---
 title: \"Supplemental Information 4\"
-output: pdf_document
+output: 
+  pdf_document:
+    extra_dependencies: [\"geometry\"]
+    latex_engine: xelatex
+geometry: landscape
 ---
 
 ## Description
@@ -3831,7 +3880,7 @@ for(i in traits[c(grep("VR", traits),
                   grep("FDK", traits),
                   grep("DON", traits))]){
   # Pull files
-  temp1 <- list.files()
+  temp1 <- list.files("./results_images")
   
   # Grep files out
   temp1 <- temp1[grep(i, temp1)]
@@ -3876,6 +3925,39 @@ for(i in traits[c(grep("VR", traits),
   # Remove
   remove(temp1, temp2, temp3)
 }
+
+# Make a tail for the content
+tail_of_content <- c(
+"
+## QTL Scan Information
+
+The following table displays the output results of each scan from each environment by trait combination. Traits assessed are heading date (HD) and plant height (PH), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON). Environments assessed are Kinston, NC 2018-2019 (KIN19) and 2019-2020 (KIN20); Raleigh, NC 2018-2019 (RAL19) and 2019-2020 (RAL20); and Warsaw, VA 2018-2019 (WAR19) and 2019-2020 (WAR20). Multi-environment scans are denoted as \"ME\". The column \"QTL\" column denotes the name of the QTL, the trait to which it belongs (e.g., Hd=HD, Pht=PH, Fvr=VR, Fdk=FDK, Don=DON) and what chromosome on which the QTL is located. 
+
+\\tiny
+
+```{r, echo = FALSE}
+library(knitr)
+library(rmarkdown)
+suppressMessages(library(tidyverse))
+
+a <- read.csv(\"./results_csv_files/vr_fdk_don_drop_one_qtl_info_with_adjustment_formatted.csv\", check.names = FALSE)
+a <- a %>% 
+  arrange(Trait, Environment, Chromosome, `Peak Position (cM)`) %>% 
+  select(-`Left Marker`,
+         -`Left Position (Mbp)`,
+         -`Peak Marker`, 
+         -`Peak Position (Mbp)`,
+         -`Right Marker`,
+         -`Right Position (Mbp)`,
+         -Chromosome,
+         -Trait)
+knitr::kable(a, align = 'c', digits = 2)
+remove(a)
+```"
+)
+
+# Bind in
+markdown_content <- c(markdown_content, tail_of_content)
 
 # Write the Markdown content to a file
 writeLines(markdown_content, "supplemental_information_4.Rmd")

@@ -1,7 +1,11 @@
 
 ---
 title: "Supplemental Information 4"
-output: pdf_document
+output: 
+  pdf_document:
+    extra_dependencies: ["geometry"]
+    latex_engine: xelatex
+geometry: landscape
 ---
 
 ## Description
@@ -14,148 +18,174 @@ Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans 
 
 
 ## Visual Ratings Across All Environments
-![j](Scan_IM_VR_ME_With_Adjustment.jpg)
-![j](Scan_MQM1_VR_ME_With_Adjustment.jpg)
-![j](Scan_MQM2_VR_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_VR_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_VR_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_VR_ME_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Visual Ratings in Kinston, NC - 2019
-![j](Scan_IM_VR_KIN19_With_Adjustment.jpg)
-![j](Scan_MQM1_VR_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_VR_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_VR_KIN19_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Visual Ratings in Kinston, NC - 2020
-![j](Scan_IM_VR_KIN20_With_Adjustment.jpg)
-![j](Scan_MQM1_VR_KIN20_With_Adjustment.jpg)
-![j](Scan_MQM2_VR_KIN20_With_Adjustment.jpg)
-![j](Scan_MQM3_VR_KIN20_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_VR_KIN20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_VR_KIN20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_VR_KIN20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM3_VR_KIN20_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Visual Ratings in Raleigh, NC - 2019
-![j](Scan_IM_VR_RAL19_With_Adjustment.jpg)
-![j](Scan_MQM1_VR_RAL19_With_Adjustment.jpg)
-![j](Scan_MQM2_VR_RAL19_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_VR_RAL19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_VR_RAL19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_VR_RAL19_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Visual Ratings in Raleigh, NC - 2020
-![j](Scan_IM_VR_RAL20_With_Adjustment.jpg)
-![j](Scan_MQM1_VR_RAL20_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_VR_RAL20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_VR_RAL20_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Visual Ratings in Warsaw, VA - 2020
-![j](Scan_IM_VR_WAR20_With_Adjustment.jpg)
-![j](Scan_MQM1_VR_WAR20_With_Adjustment.jpg)
-![j](Scan_MQM2_VR_WAR20_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_VR_WAR20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_VR_WAR20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_VR_WAR20_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Fusarium Damaged Kernels Across All Environments
-![j](Scan_IM_FDK_ME_With_Adjustment.jpg)
-![j](Scan_MQM1_FDK_ME_With_Adjustment.jpg)
-![j](Scan_MQM2_FDK_ME_With_Adjustment.jpg)
-![j](Scan_MQM3_FDK_ME_With_Adjustment.jpg)
-![j](Scan_MQM4_FDK_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_FDK_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_FDK_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_FDK_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM3_FDK_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM4_FDK_ME_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Fusarium Damaged Kernels in Kinston, NC - 2019
-![j](Scan_IM_FDK_KIN19_With_Adjustment.jpg)
-![j](Scan_MQM1_FDK_KIN19_With_Adjustment.jpg)
-![j](Scan_MQM2_FDK_KIN19_With_Adjustment.jpg)
-![j](Scan_MQM3_FDK_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_FDK_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_FDK_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_FDK_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM3_FDK_KIN19_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Fusarium Damaged Kernels in Kinston, NC - 2020
-![j](Scan_IM_FDK_KIN20_With_Adjustment.jpg)
-![j](Scan_MQM1_FDK_KIN20_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_FDK_KIN20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_FDK_KIN20_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Fusarium Damaged Kernels in Raleigh, NC - 2019
-![j](Scan_IM_FDK_RAL19_With_Adjustment.jpg)
-![j](Scan_MQM1_FDK_RAL19_With_Adjustment.jpg)
-![j](Scan_MQM2_FDK_RAL19_With_Adjustment.jpg)
-![j](Scan_MQM3_FDK_RAL19_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_FDK_RAL19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_FDK_RAL19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_FDK_RAL19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM3_FDK_RAL19_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Fusarium Damaged Kernels in Raleigh, NC - 2020
-![j](Scan_IM_FDK_RAL20_With_Adjustment.jpg)
-![j](Scan_MQM1_FDK_RAL20_With_Adjustment.jpg)
-![j](Scan_MQM2_FDK_RAL20_With_Adjustment.jpg)
-![j](Scan_MQM3_FDK_RAL20_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_FDK_RAL20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_FDK_RAL20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_FDK_RAL20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM3_FDK_RAL20_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Fusarium Damaged Kernels in Warsaw, VA - 2019
-![j](Scan_IM_FDK_WAR19_With_Adjustment.jpg)
-![j](Scan_MQM1_FDK_WAR19_With_Adjustment.jpg)
-![j](Scan_MQM2_FDK_WAR19_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_FDK_WAR19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_FDK_WAR19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_FDK_WAR19_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Fusarium Damaged Kernels in Warsaw, VA - 2020
-![j](Scan_IM_FDK_WAR20_With_Adjustment.jpg)
-![j](Scan_MQM1_FDK_WAR20_With_Adjustment.jpg)
-![j](Scan_MQM2_FDK_WAR20_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_FDK_WAR20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_FDK_WAR20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_FDK_WAR20_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Deoxynivalenol Content Across All Environments
-![j](Scan_IM_DON_ME_With_Adjustment.jpg)
-![j](Scan_MQM1_DON_ME_With_Adjustment.jpg)
-![j](Scan_MQM2_DON_ME_With_Adjustment.jpg)
-![j](Scan_MQM3_DON_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_DON_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_DON_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_DON_ME_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM3_DON_ME_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Deoxynivalenol Content in Kinston, NC - 2019
-![j](Scan_IM_DON_KIN19_With_Adjustment.jpg)
-![j](Scan_MQM1_DON_KIN19_With_Adjustment.jpg)
-![j](Scan_MQM2_DON_KIN19_With_Adjustment.jpg)
-![j](Scan_MQM3_DON_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_DON_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_DON_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_DON_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM3_DON_KIN19_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Deoxynivalenol Content in Kinston, NC - 2020
-![j](Scan_IM_DON_KIN20_With_Adjustment.jpg)
-![j](Scan_MQM1_DON_KIN20_With_Adjustment.jpg)
-![j](Scan_MQM2_DON_KIN20_With_Adjustment.jpg)
-![j](Scan_MQM3_DON_KIN20_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_DON_KIN20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_DON_KIN20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_DON_KIN20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM3_DON_KIN20_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Deoxynivalenol Content in Raleigh, NC - 2019
-![j](Scan_IM_DON_RAL19_With_Adjustment.jpg)
-![j](Scan_MQM1_DON_RAL19_With_Adjustment.jpg)
-![j](Scan_MQM2_DON_RAL19_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_DON_RAL19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_DON_RAL19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_DON_RAL19_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Deoxynivalenol Content in Raleigh, NC - 2020
-![j](Scan_IM_DON_RAL20_With_Adjustment.jpg)
-![j](Scan_MQM1_DON_RAL20_With_Adjustment.jpg)
-![j](Scan_MQM2_DON_RAL20_With_Adjustment.jpg)
-![j](Scan_MQM3_DON_RAL20_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_DON_RAL20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_DON_RAL20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_DON_RAL20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM3_DON_RAL20_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Deoxynivalenol Content in Warsaw, VA - 2019
-![j](Scan_IM_DON_WAR19_With_Adjustment.jpg)
-![j](Scan_MQM1_DON_WAR19_With_Adjustment.jpg)
-![j](Scan_MQM2_DON_WAR19_With_Adjustment.jpg)
-![j](Scan_MQM3_DON_WAR19_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_DON_WAR19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_DON_WAR19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_DON_WAR19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM3_DON_WAR19_With_Adjustment.jpg)
 \pagebreak
 
 
 ## Deoxynivalenol Content in Warsaw, VA - 2020
-![j](Scan_IM_DON_WAR20_With_Adjustment.jpg)
-![j](Scan_MQM1_DON_WAR20_With_Adjustment.jpg)
-![j](Scan_MQM2_DON_WAR20_With_Adjustment.jpg)
+![j](\./results_images/Scan_IM_DON_WAR20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM1_DON_WAR20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_DON_WAR20_With_Adjustment.jpg)
 \pagebreak
+
+## QTL Scan Information
+
+The following table displays the output results of each scan from each environment by trait combination. Traits assessed are heading date (HD) and plant height (PH), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON). Environments assessed are Kinston, NC 2018-2019 (KIN19) and 2019-2020 (KIN20); Raleigh, NC 2018-2019 (RAL19) and 2019-2020 (RAL20); and Warsaw, VA 2018-2019 (WAR19) and 2019-2020 (WAR20). Multi-environment scans are denoted as "ME". The column "QTL" column denotes the name of the QTL, the trait to which it belongs (e.g., Hd=HD, Pht=PH, Fvr=VR, Fdk=FDK, Don=DON) and what chromosome on which the QTL is located. 
+
+\tiny
+
+```{r, echo = FALSE}
+library(knitr)
+library(rmarkdown)
+suppressMessages(library(tidyverse))
+
+a <- read.csv("./results_csv_files/vr_fdk_don_drop_one_qtl_info_with_adjustment_formatted.csv", check.names = FALSE)
+a <- a %>% 
+  arrange(Trait, Environment, Chromosome, `Peak Position (cM)`) %>% 
+  select(-`Left Marker`,
+         -`Left Position (Mbp)`,
+         -`Peak Marker`, 
+         -`Peak Position (Mbp)`,
+         -`Right Marker`,
+         -`Right Position (Mbp)`,
+         -Chromosome,
+         -Trait)
+knitr::kable(a, align = 'c', digits = 2)
+remove(a)
+```
