@@ -1729,7 +1729,7 @@ color_palette <- c(
   "VR_RAL19" = "#A0522D",     # Brown
   "VR_RAL20" = "#FF4500",     # OrangeRed
   "VR_WAR20" = "#FF6347",     # Tomato
-  "FDK_ME" = "#FFFF00",       # Yellow
+  "FDK_ME" = "#E6CC00",       # Yellow
   "FDK_KIN19" = "#B8860B",    # DarkGoldenrod
   "FDK_KIN20" = "#FFD700",    # Gold
   "FDK_RAL19" = "#DAA520",    # Goldenrod
@@ -1922,7 +1922,7 @@ color_palette <- c(
   "Heading Date" = "#0000FF",                # Blue
   "Plant Height" = "#EE82EE",                # Violet
   "Visual Rating" = "#FF0000",               # Red  
-  "Fusarium Damaged Kernels" = "#FFFF00",    # Yellow
+  "Fusarium Damaged Kernels" = "#E6CC00",    # Yellow
   "Deoxynivalenol Content" = "#00FF00"       # Green
 )
 
@@ -2733,7 +2733,7 @@ color_palette <- c(
   "VR_RAL19" = "#A0522D",     # Brown
   "VR_RAL20" = "#FF4500",     # OrangeRed
   "VR_WAR20" = "#FF6347",     # Tomato
-  "FDK_ME" = "#FFFF00",       # Yellow
+  "FDK_ME" = "#E6CC00",       # Yellow
   "FDK_KIN19" = "#B8860B",    # DarkGoldenrod
   "FDK_KIN20" = "#FFD700",    # Gold
   "FDK_RAL19" = "#DAA520",    # Goldenrod
@@ -2905,7 +2905,7 @@ a
 # Save output
 ggsave(plot = a,
        filename = "support_intervals_vr_fdk_don_with_adjustment.jpg",
-       width = 20,
+       width = 15,
        height = 15,
        dpi = 320,
        units = "in")
@@ -2924,9 +2924,9 @@ traits<-c("VR_ME", "FDK_ME", "DON_ME")
 color_palette <- c(
   # "Heading Date" = "#0000FF",                # Blue
   # "Plant Height" = "#EE82EE",                # Violet
-  "Visual Rating" = "#FF0000",               # Red  
-  "Fusarium Damaged Kernels" = "#FFFF00",    # Yellow
-  "Deoxynivalenol Content" = "#00FF00"       # Green
+  "Visual Rating" = "#FF0000",                 # Red  
+  "Fusarium Damaged Kernels" = "#E6CC00",      # Yellow
+  "Deoxynivalenol Content" = "#00FF00"         # Green
 )
 
 # Make temp list out of results 
@@ -3090,7 +3090,7 @@ a
 # Save output
 ggsave(plot = a,
        filename = "support_intervals_vr_fdk_don_with_adjustment_ME_only.jpg",
-       width = 20,
+       width = 15,
        height = 15,
        dpi = 320,
        units = "in")
@@ -3176,8 +3176,8 @@ for(i in traits){
   c$trait <- i
   
   # Bind in data
-  qtl_info_drop_one <- rbind(qtl_info_drop_one, d)
-  qtl_info_full <- rbind(qtl_info_full, c)
+  qtl_info_drop_one_adj <- rbind(qtl_info_drop_one_adj, d)
+  qtl_info_full_adj <- rbind(qtl_info_full_adj, c)
   
   # Remove
   remove(a,b,c,d,e)
@@ -3428,7 +3428,7 @@ hd_ph_table <- hd_ph_vr_fdk_don_table_edit %>%
 # Subset only ME
 hd_ph_table_me <- hd_ph_table %>%
   filter(Environment=="ME") %>%
-  arrange(Chromosome, Trait, `Peak Position (cM)`) %>%
+  arrange(Trait, Chromosome, `Peak Position (cM)`) %>%
   select(-Trait, -Environment)
 
 # Get counts across environments
@@ -3452,11 +3452,11 @@ write.csv(hd_ph_table_me,
 
 ```{r}
 # Read table
-vr_fdk_don_table <- read.csv("vr_fdk_don_with_adjust",
-                                   check.names = FALSE)
+vr_fdk_don_table <- read.csv("vr_fdk_don_drop_one_qtl_info_with_adjustment.csv",
+                             check.names = FALSE)
 
 # Subset data
-hd_ph_vr_fdk_don_table <- hd_ph_vr_fdk_don_table %>%
+vr_fdk_don_table <- vr_fdk_don_table %>%
   select(name, 
          trait, 
          chr, 
@@ -3472,12 +3472,12 @@ hd_ph_vr_fdk_don_table <- hd_ph_vr_fdk_don_table %>%
   arrange(trait, chr, mid_pos)
 
 # Make edit
-hd_ph_vr_fdk_don_table_edit <-c()
+vr_fdk_don_table_edit <-c()
 
 # Loop
-for(i in unique(hd_ph_vr_fdk_don_table$trait)){
+for(i in unique(vr_fdk_don_table$trait)){
   # Pull the trait
-  temp1 <- hd_ph_vr_fdk_don_table[hd_ph_vr_fdk_don_table$trait==i,]
+  temp1 <- vr_fdk_don_table[vr_fdk_don_table$trait==i,]
   
   # Loop 
   for(j in unique(temp1$chr)){
@@ -3584,47 +3584,42 @@ for(i in unique(hd_ph_vr_fdk_don_table$trait)){
            Effect)
   
   # Bind in
-  hd_ph_vr_fdk_don_table_edit <- rbind(hd_ph_vr_fdk_don_table_edit,
-                                       temp3)
+  vr_fdk_don_table_edit <- rbind(vr_fdk_don_table_edit,
+                                 temp3)
   
   # Remove
   remove(temp1, temp3)
-
 }
 
 # Order
-hd_ph_vr_fdk_don_table_edit <- hd_ph_vr_fdk_don_table_edit %>%
+vr_fdk_don_table_edit <- vr_fdk_don_table_edit %>%
   arrange(Trait, Environment, Chromosome, `Peak Position (cM)`)
 
 # Write full table
-write.csv(hd_ph_vr_fdk_don_table_edit,
-          "hd_ph_vr_fdk_don_drop_one_qtl_info_no_adjustment_formatted.csv",
+write.csv(vr_fdk_don_table_edit,
+          "vr_fdk_don_drop_one_qtl_info_with_adjustment_formatted.csv",
           row.names = FALSE)
 
-# Subset only PH and HD
-hd_ph_table <- hd_ph_vr_fdk_don_table_edit %>%
-  filter(Trait %in% c("HD", "PH"))
-
-# Subset only ME
-hd_ph_table_me <- hd_ph_table %>%
-  filter(Environment=="ME") %>%
-  arrange(Chromosome, Trait, `Peak Position (cM)`) %>%
-  select(-Trait, -Environment)
-
-# Get counts across environments
-counts <- hd_ph_table %>%
+# Subset only single environments
+vr_fdk_don_table <- vr_fdk_don_table_edit %>%
   filter(Environment!="ME") %>%
   count(QTL)
 
+# Subset only ME
+vr_fdk_don_table_me <- vr_fdk_don_table_edit %>%
+  filter(Environment=="ME") %>%
+  arrange(Trait, Chromosome, `Peak Position (cM)`) %>%
+  select(-Trait, -Environment)
+
 # Bind in those counts
-hd_ph_table_me <- hd_ph_table_me %>%
-  left_join(counts, by = "QTL") %>%
+vr_fdk_don_table_me <- vr_fdk_don_table_me %>%
+  left_join(vr_fdk_don_table, by = "QTL") %>%
   rename(N = n) %>%
   select(QTL, N, everything())
 
 # Write table
-write.csv(hd_ph_table_me,
-          "hd_ph_me_formatted.csv",
+write.csv(vr_fdk_don_table_me,
+          "vr_fdk_don_me_formatted.csv",
           row.names = FALSE)
 ```
 
@@ -3633,7 +3628,7 @@ write.csv(hd_ph_table_me,
 ```{r}
 # Create directory
 target_directory <- paste(getwd(), "results_images", sep = "/")
-dir.create(target_directory)
+dir.create(target_directory, showWarnings = FALSE)
 
 # Get a list of files that are images
 files <- list.files()[grep("\\.jpg", list.files(), ignore.case = TRUE)]
@@ -3649,11 +3644,14 @@ for(i in files){
   # Move the file
   file.rename(from = temp1,
               to = temp2)
+  
+  # Remove
+  remove(temp1, temp2)
 }
 
 # Create directory
 target_directory <- paste(getwd(), "results_csv_files", sep = "/")
-dir.create(target_directory)
+dir.create(target_directory, showWarnings = FALSE)
 
 # Get a list of files that are images
 files <- list.files()[grep("\\.csv", list.files(), ignore.case = TRUE)]
@@ -3671,6 +3669,9 @@ for(i in files){
   # Move the file
   file.rename(from = temp1,
               to = temp2)
+  
+  # Remove
+  remove(temp1, temp2)
 }
 ```
 
@@ -3912,4 +3913,31 @@ writeLines(markdown_content, "supplemental_information_5.Rmd")
 
 # Render the Markdown file to PDF
 rmarkdown::render("supplemental_information_5.Rmd", output_format = "pdf_document")
+```
+
+## Move all supplemental files to relevant folders 
+
+```{r}
+# Create directory
+target_directory <- paste(getwd(), "supplemental_information", sep = "/")
+dir.create(target_directory, showWarnings = FALSE)
+
+# Get a list of files that are images
+files <- list.files()[grep("supplemental_information_", list.files(), ignore.case = TRUE)]
+
+# Move into folder
+for(i in files){
+  # Get working directory
+  temp1 <- paste(getwd(), i, sep = "/")
+  
+  # Get target directory 
+  temp2 <- paste(target_directory, i, sep = "/")
+  
+  # Move the file
+  file.rename(from = temp1,
+              to = temp2)
+  
+  # Remove
+  remove(temp1, temp2)
+}
 ```
