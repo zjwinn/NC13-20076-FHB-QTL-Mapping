@@ -3131,8 +3131,8 @@ for(i in traits){
 }
 
 # Make an object for information
-qtl_info_drop_one <- c()
-qtl_info_full <- c()
+qtl_info_drop_one_adj <- c()
+qtl_info_full_adj <- c()
 
 # For i in final_qtls object
 for(i in traits){
@@ -3203,12 +3203,6 @@ write.csv(qtl_info_full_adj,
           row.names = FALSE)
 ```
 
-# Save analysis image
-
-```{r}
-# Save image
-save.image("Final_Analysis.RData")
-```
 
 # Create marker table
 
@@ -3625,6 +3619,61 @@ vr_fdk_don_table_me <- vr_fdk_don_table_me %>%
   rename(N = n) %>%
   select(QTL, N, everything())
 
+# Perform multiple marker regression for the ME QTL
+for(i in c("VR", "FDK", "DON")){
+  # Pull peak markers for QTL
+  temp1 <- vr_fdk_don_table_me[grep(i, vr_fdk_don_table_me$QTL, ignore.case = TRUE),"Peak Marker"]
+  
+  # Name the QTL
+  names(temp1) <- vr_fdk_don_table_me[grep(i, vr_fdk_don_table_me$QTL, ignore.case = TRUE),"QTL"]
+  
+  # Pull those markers
+  temp2 <- as.data.frame(pull.geno(fill.geno(cross_file))[,temp1])
+
+  # Replace 1 and 2 with A and B
+  temp2[temp2==1] <- "A"
+  temp2[temp2==2] <- "B"
+    
+  # Make all columns a factor
+  temp2[,1:ncol(temp2)] <- lapply(temp2[,1:ncol(temp2)], as.factor)
+  
+  # Colnames rename
+  colnames(temp2) <- names(temp1)
+  
+  # Add GENOTYPE
+  temp2$GENOTYPE <- as.character(cross_file$pheno$GENOTYPE)
+  
+  # Left join phenotype data
+  temp2 <- left_join(temp2, na.omit(pheno[,c("GENOTYPE", ifelse(i=="VR", "FHB", i))]), by = "GENOTYPE")
+  
+  # Make formula
+  temp3 <- formula(paste("temp2[,length(temp1)+2] ~", paste("temp2[,", 1:length(temp1), "]", sep = "", collapse = " + "), sep = " "))
+  
+  # Make equation
+  temp4 <- lm(temp3)
+  
+  # Pull effect estimate
+  temp5 <- data.frame(QTL = names(temp1),
+                      `Unadjusted Effect` = temp4$coefficients[2:c(length(temp1)+1)],
+                      row.names = NULL)
+  
+  # Put into vector 
+  if(i=="VR"){
+    # Unadjusted effects vector
+    unadjusted_effects <- temp5
+  }else{
+    # Rbind
+    unadjusted_effects <- rbind(unadjusted_effects, temp5)
+  }
+  
+  # Clean up
+  remove(temp1, temp2, temp3, temp4, temp5)
+}
+
+# Bind in
+vr_fdk_don_table_me <- vr_fdk_don_table_me %>%
+  left_join(unadjusted_effects, by = "QTL")
+
 # Write table
 write.csv(vr_fdk_don_table_me,
           "vr_fdk_don_me_formatted.csv",
@@ -3696,13 +3745,12 @@ output: pdf_document
 
 ## Description
 
-Visualization of linkage map marker centimorgan (cM) versus megabase pair (Mbp) distance. Each subgraph header displays the name of each linkage group (chromosome). The x-axis displays the physical Mbp distance between markers. The y-axis displays the recombination-based cM distance between markers.
+List of major loci which affect plant height and heading date. For reduced height genes (e.g., _Rht_), wild type refers to the tall allele at the locus and dwarf refers to the dwarfing allele (e.g., _Rht-B1b_). For photoperiod genes (e.g., _Ppd_), photoperiod sensitive means that the line has the photoperiod sensitive allele which leads to response to day length and photoperiod insensitive means the line has the photoperiod sensitive allele which leads to a lack of response to day length. For vernalization genes (e.g., _Vrn_), long vernalization refers to the winter type haplotype at the locus and short vernalization stands for the spring type haplotype at the locus.  
 
-\\pagebreak
-
-![](\\./results_images/cM_vs_bp_comparison.jpg)
-
-")
+```{r, echo=FALSE}
+a <- read.csv('./results_csv_files/parental_marker_report.csv', check.names = FALSE)
+knitr::kable(a, align = 'c')
+```")
 
 # Write the Markdown content to a file
 writeLines(markdown_content, "supplemental_information_1.Rmd")
@@ -3714,10 +3762,36 @@ rmarkdown::render("supplemental_information_1.Rmd", output_format = "pdf_documen
 ## Supplemental Information 2
 
 ```{r}
-# Create the Markdown content
 markdown_content <- c("
 ---
 title: \"Supplemental Information 2\"
+output: pdf_document
+---
+
+## Description
+
+Visualization of linkage map marker centimorgan (cM) versus megabase pair (Mbp) distance. Each subgraph header displays the name of each linkage group (chromosome). The x-axis displays the physical Mbp distance between markers. The y-axis displays the recombination-based cM distance between markers.
+
+\\pagebreak
+
+![](\\./results_images/cM_vs_bp_comparison.jpg)
+
+")
+
+# Write the Markdown content to a file
+writeLines(markdown_content, "supplemental_information_2.Rmd")
+
+# Render the Markdown file to PDF
+rmarkdown::render("supplemental_information_2.Rmd", output_format = "pdf_document")
+```
+
+## Supplemental Information 3
+
+```{r}
+# Create the Markdown content
+markdown_content <- c("
+---
+title: \"Supplemental Information 3\"
 output: 
   pdf_document:
     extra_dependencies: [\"geometry\"]
@@ -3799,6 +3873,7 @@ suppressMessages(library(tidyverse))
 
 a <- read.csv(\"./results_csv_files/hd_ph_vr_fdk_don_drop_one_qtl_info_no_adjustment_formatted.csv\", check.names = FALSE)
 a <- a %>% 
+  mutate(Environment = factor(Environment, levels = c('ME','KIN19','KIN20','RAL19','RAL20','WAR19','WAR20'))) %>%
   arrange(Trait, Environment, Chromosome, `Peak Position (cM)`) %>% 
   select(-`Left Marker`,
          -`Left Position (Mbp)`,
@@ -3817,19 +3892,19 @@ remove(a)
 markdown_content <- c(markdown_content, tail_of_content)
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_2.Rmd")
+writeLines(markdown_content, "supplemental_information_3.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_2.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_3.Rmd", output_format = "pdf_document")
 ```
 
-## Supplemental Information 3
+## Supplemental Information 4
 
 ```{r}
 # Create the Markdown content
 markdown_content <- c('
 ---
-title: \"Supplemental Information 3\"
+title: \"Supplemental Information 4\"
 output: 
   pdf_document:
     extra_dependencies: ["geometry"]
@@ -3848,19 +3923,19 @@ A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn 
 ')
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_3.Rmd")
+writeLines(markdown_content, "supplemental_information_4.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_3.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_4.Rmd", output_format = "pdf_document")
 ```
 
-## Supplemental Information 4
+## Supplemental Information 5
 
 ```{r}
 # Create the Markdown content
 markdown_content <- c("
 ---
-title: \"Supplemental Information 4\"
+title: \"Supplemental Information 5\"
 output: 
   pdf_document:
     extra_dependencies: [\"geometry\"]
@@ -3942,6 +4017,7 @@ suppressMessages(library(tidyverse))
 
 a <- read.csv(\"./results_csv_files/vr_fdk_don_drop_one_qtl_info_with_adjustment_formatted.csv\", check.names = FALSE)
 a <- a %>% 
+  mutate(Environment = factor(Environment, levels = c('ME','KIN19','KIN20','RAL19','RAL20','WAR19','WAR20'))) %>%
   arrange(Trait, Environment, Chromosome, `Peak Position (cM)`) %>% 
   select(-`Left Marker`,
          -`Left Position (Mbp)`,
@@ -3960,19 +4036,19 @@ remove(a)
 markdown_content <- c(markdown_content, tail_of_content)
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_4.Rmd")
+writeLines(markdown_content, "supplemental_information_5.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_4.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_5.Rmd", output_format = "pdf_document")
 ```
 
-## Supplemental Information 5
+## Supplemental Information 6
 
 ```{r}
 # Create the Markdown content
 markdown_content <- c('
 ---
-title: \"Supplemental Information 5\"
+title: \"Supplemental Information 6\"
 output: 
   pdf_document:
     extra_dependencies: ["geometry"]
@@ -3991,10 +4067,10 @@ A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn 
 ')
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_5.Rmd")
+writeLines(markdown_content, "supplemental_information_6.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_5.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_6.Rmd", output_format = "pdf_document")
 ```
 
 ## Move all supplemental files to relevant folders 
@@ -4022,4 +4098,11 @@ for(i in files){
   # Remove
   remove(temp1, temp2)
 }
+```
+
+# Save analysis image
+
+```{r}
+# Save image
+save.image("Final_Analysis.RData")
 ```

@@ -6,10 +6,9 @@ output: pdf_document
 
 ## Description
 
-Visualization of linkage map marker centimorgan (cM) versus megabase pair (Mbp) distance. Each subgraph header displays the name of each linkage group (chromosome). The x-axis displays the physical Mbp distance between markers. The y-axis displays the recombination-based cM distance between markers.
+List of major loci which affect plant height and heading date. For reduced height genes (e.g., _Rht_), wild type refers to the tall allele at the locus and dwarf refers to the dwarfing allele (e.g., _Rht-B1b_). For photoperiod genes (e.g., _Ppd_), photoperiod sensitive means that the line has the photoperiod sensitive allele which leads to response to day length and photoperiod insensitive means the line has the photoperiod sensitive allele which leads to a lack of response to day length. For vernalization genes (e.g., _Vrn_), long vernalization refers to the winter type haplotype at the locus and short vernalization stands for the spring type haplotype at the locus.  
 
-\pagebreak
-
-![](\./results_images/cM_vs_bp_comparison.jpg)
-
-
+```{r, echo=FALSE}
+a <- read.csv('./results_csv_files/parental_marker_report.csv', check.names = FALSE)
+knitr::kable(a, align = 'c')
+```
