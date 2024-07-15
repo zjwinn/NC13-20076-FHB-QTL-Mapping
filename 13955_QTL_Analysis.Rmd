@@ -1380,6 +1380,146 @@ for(i in 1:nrow(covars)){
 # Visualize HD and PH QTL
 
 ```{r}
+# Write function to visualize
+qtl_visualization<- function(results_data, 
+                             color_palette,
+                             traits,
+                             covariates = covar_markers){
+  # Make object for ggplot formatted data
+  dat_ggplot <- c()
+  
+  # For each trait
+  for(i in traits){
+    # Pull a temporary dataframe 
+    a <- results_data$final$qtl_support_intervals[[i]]
+    # Rbind on results
+    dat_ggplot <- rbind(dat_ggplot, a)
+    # Remove 
+    remove(a)
+  }
+  
+  # Get a dataframe of the markers across the genome for this image
+  d <- results_data$IM$scan$VR_ME %>%
+    filter(chr %in% dat_ggplot$chr)
+  
+  # Mutate chromosome so that it is both chromosome and trait
+  dat_ggplot <- dat_ggplot %>% 
+    mutate(chr = paste(chr, trait, sep = "_"))
+  
+  # Create a list for images
+  finalplot <- list()
+  
+  # For i in unique chromosomes 
+  for(i in unique(d$chr)){
+    # Pull a temporary dataframe
+    a <- dat_ggplot[grep(i, dat_ggplot$chr),]
+    
+    # Redefine trait with color pallet levels
+    a$trait <- factor(a$trait, levels = names(color_palette))
+    
+    # Make QTL name unique
+    a$name <- seq(1:nrow(a))
+    
+    # Only pull the chromosome listed in object d from above
+    b <- d[d$chr==i,]
+    
+    # Remove all sudo-markers from b
+    b <- b[-grep("loc", rownames(b)),]
+    
+    # Move the rownames into a column called markers 
+    b <- rownames_to_column(b, var = "marker")
+    
+    # Make b$chr a character
+    b$chr <- as.character(b$chr)
+    
+    # Make an object called label that is made from the covariates on that chromsomes
+    Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
+    
+    # make linear a
+    linear_a <- c()
+    
+    # Make a marker version and concatinate 
+    for(j in 1:nrow(a)){
+      # Pull marker matrix 
+      temp1 <- b[b$pos>=a$start[j] & b$pos<=a$stop[j],]
+      
+      # Make new dataframe
+      temp1$chr <- a[j,"trait"]
+      
+      # Make new column 
+      temp1$qtl <- a[j, "name"]
+      
+      # rbind
+      linear_a <- rbind(linear_a, temp1)
+      
+      # Remove
+      remove(temp1)
+    }
+    
+    # Give b a new column 
+    b$qtl <- "Linkage Map"
+    
+    # Bind
+    b <- rbind(b,linear_a)
+    
+    # Replace chromosome name
+    b$chr <- ifelse(b$chr == i, "Linkage Map", b$chr)
+    
+    # Redefine factor for chr
+    b$chr <- factor(b$chr, levels = c("Linkage Map", names(color_palette)))
+  
+    # Make temp color_pallet 
+    temp_color_pallet <- c(c("black"), color_palette)
+    
+    # Make color for linkage map
+    names(temp_color_pallet)[1] <- "Linkage Map"
+    
+    # define qtl
+    b$qtl <- factor(b$qtl, levels = c("Linkage Map", a$name))
+    
+    # Create first plot
+    c <- ggplot(data = b, aes(x = qtl, y = pos, color = chr))+ # Make plot out of object b
+      geom_point(size = 2, show.legend = TRUE, position = position_dodge(0.2))+ # Make points that represent the markers
+      geom_line(linewidth = 1, show.legend = TRUE, position = position_dodge(0.2))+ # Make a line that represents the length of the linkage group 
+      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
+      scale_color_manual(values = temp_color_pallet, # Set the values of the color palette
+                         drop = FALSE)+ # and make it so that no levels are dropped
+      theme_classic()+ # Add the classic theme 
+      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
+            axis.text.x = element_blank(), # Get rid of the x-axis text
+            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
+            axis.line.x = element_blank())+ # Get rid of the x-axis line
+      labs(title = i, # Make the title of the graph the name of the chromosome 
+           color = "Color Legend", # Name the legend 
+           y = "cM") # Lable the y-axis as "cM"
+    
+    # If label exists   
+    if(length(Label)>0){
+      # Add a green point for HD and PH covariates 
+      c <- c+
+        geom_point(data = d[rownames(d) %in% Label,], 
+                   aes(x = "Linkage Map", y = pos), 
+                   color = "#ff6700", 
+                   size = 4, 
+                   shape = 17) +
+        geom_hline(data = d[rownames(d) %in% Label,], 
+                   aes(yintercept = pos), 
+                   color = "#ff6700", 
+                   lty = 2,
+                   size = 1)
+    }
+      
+    # Add to the object finalplot and name it 
+    finalplot[[paste("chr",i,sep="_")]] <- c
+    
+    # Remove temporary dataframes 
+    remove(a,b,c)
+  }
+  
+  # return object
+  return(finalplot)
+}
+
 # Pull vector of traits
 traits <- names(cross_file$pheno)[c(grep("HD", names(cross_file$pheno)),
                                     grep("PH", names(cross_file$pheno)))]
@@ -1396,139 +1536,10 @@ color_palette <- c(
   "PH_KIN20" = "#9932CC"      # DarkOrchid
 )
 
-# Make temp list out of results 
-dat_temp <- results_HD_PH_VR_FDK_DON
-
-# Make object for ggplot formatted data
-dat_ggplot <- c()
-
-# For each trait
-for(i in traits){
-  # Pull a temporary dataframe 
-  a <- dat_temp$final$qtl_support_intervals[[i]]
-  # Rbind on results
-  dat_ggplot <- rbind(dat_ggplot, a)
-  # Remove 
-  remove(a)
-}
-
-# Get a dataframe of the markers across the genome for this image
-d <- dat_temp$IM$scan$VR_ME %>%
-  filter(chr %in% dat_ggplot$chr)
-
-# Mutate chromosome so that it is both chromosome and trait
-dat_ggplot <- dat_ggplot %>% 
-  mutate(chr = paste(chr, trait, sep = "_"))
-
-# Create a list for images
-finalplot <- list()
-
-# Set an external vector
-j = 1
-
-# For i in unique chromosomes 
-for(i in unique(d$chr)){
-  # Pull a temporary dataframe
-  a <- dat_ggplot[grep(i, dat_ggplot$chr),]
-  
-  # Redefine trait with color pallet levels
-  a$trait <- factor(a$trait, levels = names(color_palette))
-  
-  # Only pull the chromosome listed in object d from above
-  b <- d[d$chr==i,]
-  
-  # Remove all sudo-markers from b
-  b <- b[-grep("loc", rownames(b)),]
-  
-  # Move the rownames into a column called markers 
-  b <- rownames_to_column(b, var = "marker")
-  
-  # Make an object called label that is made from the covariates on that chromsomes
-  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
-  
-  # If the external variable j is equal to 1
-  if(j==1){
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank())+ # Get rid of the x-axis line
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment", # Name the legend 
-           y = "cM") # Lable the y-axis as "cM"
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }
-  # If j is not equal to 1
-  }else{
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank(), # Get rid of the x-axis line
-            axis.title.y = element_blank())+ # Get rid of the y-axis title
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment") # Name the legend 
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }    
-  }
-  # Add to the object finalplot and name it 
-  finalplot[[paste("chr",i,sep="_")]] <- c
-  
-  # Remove temporary dataframes 
-  remove(a,b,c)
-  
-  # Add 1 to j 
-  j = j + 1
-}
+# Run function
+finalplot <- qtl_visualization(results_data = results_HD_PH_VR_FDK_DON,
+                               color_palette = color_palette,
+                               traits = traits)
 
 # Create final plot
 a <- (finalplot$chr_4A+
@@ -1566,141 +1577,20 @@ color_palette <- c(
   "Plant Height" = "#EE82EE"         # Violet
 )
 
-# Make temp list out of results 
-dat_temp <- results_HD_PH_VR_FDK_DON
+# Make temp
+temp1 <- results_HD_PH_VR_FDK_DON
 
-# Make object for ggplot formatted data
-dat_ggplot <- c()
+# Rename
+temp1$final$qtl_support_intervals$HD_ME$trait <- "Heading Date"
+temp1$final$qtl_support_intervals$PH_ME$trait <- "Plant Height"
 
-# For each trait
-for(i in traits){
-  # Pull a temporary dataframe 
-  a <- dat_temp$final$qtl_support_intervals[[i]]
-  # Rbind on results
-  dat_ggplot <- rbind(dat_ggplot, a)
-  # Remove 
-  remove(a)
-}
+# Run function
+finalplot <- qtl_visualization(results_data = temp1,
+                               color_palette = color_palette,
+                               traits = traits)
 
-# Get a dataframe of the markers across the genome for this image
-d <- dat_temp$IM$scan$VR_ME %>%
-  filter(chr %in% dat_ggplot$chr)
-
-# Mutate chromosome so that it is both chromosome and trait
-dat_ggplot <- dat_ggplot %>% 
-  mutate(chr = paste(chr, trait, sep = "_")) %>%
-  mutate(trait=ifelse(trait=="HD_ME", "Heading Date",
-                    ifelse(trait=="PH_ME", "Plant Height", "ERROR")))
-
-# Create a list for images
-finalplot <- list()
-
-# Set an external vector
-j = 1
-
-# For i in unique chromosomes 
-for(i in unique(d$chr)){
-  # Pull a temporary dataframe
-  a <- dat_ggplot[grep(i, dat_ggplot$chr),]
-  
-  # Redefine trait with color pallet levels
-  a$trait <- factor(a$trait, levels = names(color_palette))
-  
-  # Only pull the chromosome listed in object d from above
-  b <- d[d$chr==i,]
-  
-  # Remove all sudo-markers from b
-  b <- b[-grep("loc", rownames(b)),]
-  
-  # Move the rownames into a column called markers 
-  b <- rownames_to_column(b, var = "marker")
-  
-  # Make an object called label that is made from the covariates on that chromsomes
-  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
-  
-  # If the external variable j is equal to 1
-  if(j==1){
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank())+ # Get rid of the x-axis line
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment", # Name the legend 
-           y = "cM") # Lable the y-axis as "cM"
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }
-  # If j is not equal to 1
-  }else{
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank(), # Get rid of the x-axis line
-            axis.title.y = element_blank())+ # Get rid of the y-axis title
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment") # Name the legend 
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }    
-  }
-  # Add to the object finalplot and name it 
-  finalplot[[paste("chr",i,sep="_")]] <- c
-  
-  # Remove temporary dataframes 
-  remove(a,b,c)
-  
-  # Add 1 to j 
-  j=j+1
-}
+# Remove temp
+remove(temp1)
 
 # Create final plot
 a <- (finalplot$chr_4A+
@@ -1763,139 +1653,10 @@ color_palette <- c(
   "DON_WAR20" = "#00FF7F"     # SpringGreen1
 )
 
-# Make temp list out of results 
-dat_temp <- results_HD_PH_VR_FDK_DON
-
-# Make object for ggplot formatted data
-dat_ggplot <- c()
-
-# For each trait
-for(i in traits){
-  # Pull a temporary dataframe 
-  a <- dat_temp$final$qtl_support_intervals[[i]]
-  # Rbind on results
-  dat_ggplot <- rbind(dat_ggplot, a)
-  # Remove 
-  remove(a)
-}
-
-# Get a dataframe of the markers across the genome for this image
-d <- dat_temp$IM$scan$VR_ME %>%
-  filter(chr %in% dat_ggplot$chr)
-
-# Mutate chromosome so that it is both chromosome and trait
-dat_ggplot <- dat_ggplot %>% 
-  mutate(chr = paste(chr, trait, sep = "_"))
-
-# Create a list for images
-finalplot <- list()
-
-# Set an external vector
-j = 1
-
-# For i in unique chromosomes 
-for(i in unique(d$chr)){
-  # Pull a temporary dataframe
-  a <- dat_ggplot[grep(i, dat_ggplot$chr),]
-  
-  # Redefine trait with color pallet levels
-  a$trait <- factor(a$trait, levels = names(color_palette))
-  
-  # Only pull the chromosome listed in object d from above
-  b <- d[d$chr==i,]
-  
-  # Remove all sudo-markers from b
-  b <- b[-grep("loc", rownames(b)),]
-  
-  # Move the rownames into a column called markers 
-  b <- rownames_to_column(b, var = "marker")
-  
-  # Make an object called label that is made from the covariates on that chromsomes
-  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
-  
-  # If the external variable j is equal to 1
-  if(j==1){
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank())+ # Get rid of the x-axis line
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment", # Name the legend 
-           y = "cM") # Lable the y-axis as "cM"
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }
-  # If j is not equal to 1
-  }else{
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank(), # Get rid of the x-axis line
-            axis.title.y = element_blank())+ # Get rid of the y-axis title
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment") # Name the legend 
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }    
-  }
-  # Add to the object finalplot and name it 
-  finalplot[[paste("chr",i,sep="_")]] <- c
-  
-  # Remove temporary dataframes 
-  remove(a,b,c)
-  
-  # Add 1 to j 
-  j = j + 1
-}
+# Run function
+finalplot <- qtl_visualization(results_data = results_HD_PH_VR_FDK_DON,
+                               color_palette = color_palette,
+                               traits = traits)
 
 # Create final plot
 a <- (finalplot$chr_1A+
@@ -1925,9 +1686,6 @@ ggsave(plot = a,
        height = 15,
        dpi = 320,
        units = "in")
-
-# Remove
-remove(dat_ggplot, dat_temp)
 ```
 
 # Visualize HD, PH, VR, FDK, and DON for ME only
@@ -1946,144 +1704,25 @@ color_palette <- c(
 )
 
 
-# Make temp list out of results 
-dat_temp <- results_HD_PH_VR_FDK_DON
+# Make temp
+temp1 <- results_HD_PH_VR_FDK_DON
 
-# Make object for ggplot formatted data
-dat_ggplot <- c()
+# Rename
+temp1$final$qtl_support_intervals$HD_ME$trait <- "Heading Date"
+temp1$final$qtl_support_intervals$PH_ME$trait <- "Plant Height"
+temp1$final$qtl_support_intervals$VR_ME$trait <- "Visual Rating"
+temp1$final$qtl_support_intervals$FDK_ME$trait <- "Fusarium Damaged Kernels"
+temp1$final$qtl_support_intervals$DON_ME$trait <- "Deoxynivalenol Content"
 
-# For each trait
-for(i in traits){
-  # Pull a temporary dataframe 
-  a <- dat_temp$final$qtl_support_intervals[[i]]
-  # Rbind on results
-  dat_ggplot <- rbind(dat_ggplot, a)
-  # Remove 
-  remove(a)
-}
 
-# Get a dataframe of the markers across the genome for this image
-d <- dat_temp$IM$scan$VR_ME %>%
-  filter(chr %in% dat_ggplot$chr)
 
-# Mutate chromosome so that it is both chromosome and trait
-dat_ggplot <- dat_ggplot %>% 
-  mutate(chr = paste(chr, trait, sep = "_")) %>%
-  mutate(trait=ifelse(trait=="HD_ME", "Heading Date",
-                    ifelse(trait=="PH_ME", "Plant Height",
-                           ifelse(trait=="VR_ME", "Visual Rating",
-                                  ifelse(trait=="FDK_ME", "Fusarium Damaged Kernels",
-                                         ifelse(trait=="DON_ME", "Deoxynivalenol Content", "ERROR"))))))
+# Run function
+finalplot <- qtl_visualization(results_data = temp1,
+                               color_palette = color_palette,
+                               traits = traits)
 
-# Create a list for images
-finalplot <- list()
-
-# Set an external vector
-j = 1
-
-# For i in unique chromosomes 
-for(i in unique(d$chr)){
-  # Pull a temporary dataframe
-  a <- dat_ggplot[grep(i, dat_ggplot$chr),]
-  
-  # Redefine trait with color pallet levels
-  a$trait <- factor(a$trait, levels = names(color_palette))
-  
-  # Only pull the chromosome listed in object d from above
-  b <- d[d$chr==i,]
-  
-  # Remove all sudo-markers from b
-  b <- b[-grep("loc", rownames(b)),]
-  
-  # Move the rownames into a column called markers 
-  b <- rownames_to_column(b, var = "marker")
-  
-  # Make an object called label that is made from the covariates on that chromsomes
-  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
-  
-  # If the external variable j is equal to 1
-  if(j==1){
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank())+ # Get rid of the x-axis line
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment", # Name the legend 
-           y = "cM") # Lable the y-axis as "cM"
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }
-  # If j is not equal to 1
-  }else{
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank(), # Get rid of the x-axis line
-            axis.title.y = element_blank())+ # Get rid of the y-axis title
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment") # Name the legend 
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }    
-  }
-  # Add to the object finalplot and name it 
-  finalplot[[paste("chr",i,sep="_")]] <- c
-  
-  # Remove temporary dataframes 
-  remove(a,b,c)
-  
-  # Add 1 to j 
-  j = j + 1
-}
+# Remove temp
+remove(temp1)
 
 # Create final plot
 a <- (finalplot$chr_1A+
@@ -2113,7 +1752,6 @@ ggsave(plot = a,
        height = 15,
        dpi = 320,
        units = "in")
-
 ```
 
 # Percent variance calculations - HD, PH, VR, FDK, and DON without adjustment
@@ -2769,140 +2407,10 @@ color_palette <- c(
   "DON_WAR20" = "#00FF7F"     # SpringGreen1
 )
 
-# Make temp list out of results 
-dat_temp <- results_VR_FDK_DON
-
-# Make object for ggplot formatted data
-dat_ggplot <- c()
-
-# For each trait
-for(i in traits){
-  # Pull a temporary dataframe 
-  a <- dat_temp$final$qtl_support_intervals[[i]]
-  # Rbind on results
-  dat_ggplot <- rbind(dat_ggplot, a)
-  # Remove 
-  remove(a)
-}
-
-# Get a dataframe of the markers across the genome for this image
-d <- dat_temp$IM$scan$VR_ME %>%
-  filter(chr %in% dat_ggplot$chr)
-
-# Mutate chromosome so that it is both chromosome and trait
-dat_ggplot <- dat_ggplot %>% 
-  mutate(chr = paste(chr, trait, sep = "_"))
-
-# Create a list for images
-finalplot <- list()
-
-# Set an external vector
-j = 1
-
-# For i in unique chromosomes 
-for(i in unique(d$chr)){
-  # Pull a temporary dataframe
-  a <- dat_ggplot[grep(i, dat_ggplot$chr),]
-  
-  # Redefine trait with color pallet levels
-  a$trait <- factor(a$trait, levels = names(color_palette))
-  
-  # Only pull the chromosome listed in object d from above
-  b <- d[d$chr==i,]
-  
-  # Remove all sudo-markers from b
-  b <- b[-grep("loc", rownames(b)),]
-  
-  # Move the rownames into a column called markers 
-  b <- rownames_to_column(b, var = "marker")
-  
-  # Make an object called label that is made from the covariates on that chromsomes
-  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
-  
-  # If the external variable j is equal to 1
-  if(j==1){
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank())+ # Get rid of the x-axis line
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment", # Name the legend 
-           y = "cM") # Lable the y-axis as "cM"
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }
-  # If j is not equal to 1
-  }else{
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank(), # Get rid of the x-axis line
-            axis.title.y = element_blank())+ # Get rid of the y-axis title
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment") # Name the legend 
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }    
-  }
-  # Add to the object finalplot and name it 
-  finalplot[[paste("chr",i,sep="_")]] <- c
-  
-  # Remove temporary dataframes 
-  remove(a,b,c)
-  
-  # Add 1 to j 
-  j = j + 1
-}
+# Run function
+finalplot <- qtl_visualization(results_data = results_VR_FDK_DON,
+                               color_palette = color_palette,
+                               traits = traits)
 
 # Create final plot
 a <- (finalplot$chr_1A+
@@ -2927,13 +2435,10 @@ a
 # Save output
 ggsave(plot = a,
        filename = "support_intervals_vr_fdk_don_with_adjustment.jpg",
-       width = 15,
+       width = 20,
        height = 15,
        dpi = 320,
        units = "in")
-
-# Remove
-remove(dat_ggplot, dat_temp)
 ```
 
 # Visualize FHB, FDK, and DON QTL for ME only
@@ -2951,151 +2456,27 @@ color_palette <- c(
   "Deoxynivalenol Content" = "#00FF00"         # Green
 )
 
-# Make temp list out of results 
-dat_temp <- results_VR_FDK_DON
 
-# Make object for ggplot formatted data
-dat_ggplot <- c()
+# Make temp
+temp1 <- results_VR_FDK_DON
 
-# For each trait
-for(i in traits){
-  # Pull a temporary dataframe 
-  a <- dat_temp$final$qtl_support_intervals[[i]]
-  # Rbind on results
-  dat_ggplot <- rbind(dat_ggplot, a)
-  # Remove 
-  remove(a)
-}
+# Rename
+temp1$final$qtl_support_intervals$VR_ME$trait <- "Visual Rating"
+temp1$final$qtl_support_intervals$FDK_ME$trait <- "Fusarium Damaged Kernels"
+temp1$final$qtl_support_intervals$DON_ME$trait <- "Deoxynivalenol Content"
 
-# Get a dataframe of the markers across the genome for this image
-d <- dat_temp$IM$scan$VR_ME %>%
-  filter(chr %in% dat_ggplot$chr)
+# Run function
+finalplot <- qtl_visualization(results_data = temp1,
+                               color_palette = color_palette,
+                               traits = traits)
 
-# Mutate chromosome so that it is both chromosome and trait
-dat_ggplot <- dat_ggplot %>% 
-  mutate(chr = paste(chr, trait, sep = "_")) %>%
-  mutate(trait=ifelse(trait=="HD_ME", "Heading Date",
-                    ifelse(trait=="PH_ME", "Plant Height",
-                           ifelse(trait=="VR_ME", "Visual Rating",
-                                  ifelse(trait=="FDK_ME", "Fusarium Damaged Kernels",
-                                         ifelse(trait=="DON_ME", "Deoxynivalenol Content", "ERROR"))))))  
-
-# Create a list for images
-finalplot <- list()
-
-# Set an external vector
-j = 1
-
-# For i in unique chromosomes 
-for(i in unique(d$chr)){
-  # Pull a temporary dataframe
-  a <- dat_ggplot[grep(i, dat_ggplot$chr),]
-  
-  # Redefine trait with color pallet levels
-  a$trait <- factor(a$trait, levels = names(color_palette))
-  
-  # Only pull the chromosome listed in object d from above
-  b <- d[d$chr==i,]
-  
-  # Remove all sudo-markers from b
-  b <- b[-grep("loc", rownames(b)),]
-  
-  # Move the rownames into a column called markers 
-  b <- rownames_to_column(b, var = "marker")
-  
-  # Make an object called label that is made from the covariates on that chromsomes
-  Label<-colnames(covar_markers)[grep(i, colnames(covar_markers))]
-  
-  # If the external variable j is equal to 1
-  if(j==1){
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank())+ # Get rid of the x-axis line
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment", # Name the legend 
-           y = "cM") # Lable the y-axis as "cM"
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }
-  # If j is not equal to 1
-  }else{
-    # Create first plot
-    c <- ggplot(data = b, aes(x = chr, y = pos))+ # Make plot out of object b
-      geom_point(size = 2)+ # Make points that represent the markers
-      geom_line(linewidth = 1)+ # Make a line that represents the length of the linkage group 
-      scale_y_reverse(limits = c(250,0), breaks = seq(250, 0, by = -10))+ # Scale the y axis 
-      scale_color_manual(values = color_palette, # Set the values of the color palette
-                         drop = FALSE)+ # and make it so that no levels are dropped
-      geom_segment(data = a, # Read in data 
-                   aes(x = chr, # Make the x the "chromosome" 
-                       xend = chr, # Make the ending point that same "chromosome"
-                       y = start, # Make the start the first position
-                       yend = stop, # Make the stop the end positoin
-                       color = trait), # Make the color related to the trait 
-                   linewidth = 2, # Set line width to 2
-                   position = position_jitter(), # Jitter position if there are more than one QTL that overlap
-                   show.legend = TRUE)+ # Visualize QTL confidence intervals
-      theme_classic()+ # Add the classic theme 
-      theme(axis.title.x = element_blank(), # Get rid of the x-axis title
-            axis.text.x = element_blank(), # Get rid of the x-axis text
-            axis.ticks.x = element_blank(), # Get rid of the x-axis ticks
-            axis.line.x = element_blank(), # Get rid of the x-axis line
-            axis.title.y = element_blank())+ # Get rid of the y-axis title
-      labs(title = i, # Make the title of the graph the name of the chromosome 
-           color = "Trait Within Environment") # Name the legend 
-    
-    # If label exists   
-    if(length(Label)>0){
-      # Add a green point for HD and PH covariates 
-      c <- c+
-        geom_point(data = d[rownames(d) %in% Label,], 
-                   aes(x = chr, y = pos), 
-                   color = "green", 
-                   size = 4, 
-                   shape = 17)
-    }    
-  }
-  # Add to the object finalplot and name it 
-  finalplot[[paste("chr",i,sep="_")]] <- c
-  
-  # Remove temporary dataframes 
-  remove(a,b,c)
-  
-  # Add 1 to j 
-  j = j + 1
-}
+# Remove temp
+remove(temp1)
 
 # Create final plot
 a <- (finalplot$chr_1A+
         finalplot$chr_2A+
         finalplot$chr_2B+
-        finalplot$chr_2D+
         finalplot$chr_3A+
         finalplot$chr_3B+
         finalplot$chr_4A+
@@ -3114,13 +2495,10 @@ a
 # Save output
 ggsave(plot = a,
        filename = "support_intervals_vr_fdk_don_with_adjustment_ME_only.jpg",
-       width = 15,
+       width = 20,
        height = 15,
        dpi = 320,
        units = "in")
-
-# Remove
-remove(dat_ggplot, dat_temp)
 ```
 
 # Percent variance calculations - VR, FDK, and DON with adjustment
@@ -3817,12 +3195,19 @@ geometry: landscape
 
 ## Description
 
-Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for heading date (HD) and plant height (PH), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). Presented are the results of scans performed without heading date and plant height marker covariates. In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation significance threshold at alpha equals 0.05. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map. All information regarding location, LOD and effect may be seen at the end of the document.
+Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for heading date (HD) and plant height (PH), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). Presented are the results of scans performed without heading date and plant height marker covariates. In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. Environments assessed include: Kinston, NC 2019 (KIN19) and 2020 (KIN20); Raleigh, NC 2019 (RAL19) and 2020 (RAL20); Warsaw, VA 2019 (WAR19) and 2020 (WAR20); and the multi-environment (ME). The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation significance threshold at alpha equals 0.05. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map. All information regarding location, LOD and effect may be seen at the end of the document.
 
 \\pagebreak
 
 ")
 
+# Pull all traits
+traits <- names(cross_file$pheno)[c(grep("HD", names(cross_file$pheno)),
+                                    grep("PH", names(cross_file$pheno)),
+                                    grep("VR", names(cross_file$pheno)),
+                                    grep("FDK", names(cross_file$pheno)),
+                                    grep("DON", names(cross_file$pheno)))]
+# Loop through
 for(i in traits){
   # Pull files
   temp1 <- list.files("./results_images")
@@ -3830,7 +3215,7 @@ for(i in traits){
   # Grep files out
   temp1 <- temp1[grep(i, temp1)]
   temp1 <- temp1[grep(".jpg", temp1)]
-  temp1 <- temp1[-grep("adjustment", temp1, ignore.case = TRUE)]
+  temp1 <- temp1[!temp1 %in% temp1[grep("adjustment", temp1, ignore.case = TRUE)]]
   
   # Make new line 
   temp2 <- unlist(str_split(i, "_"))
@@ -3930,7 +3315,7 @@ geometry: landscape
 
 ## Description
 
-A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn from peak positions of significant quantitative trait locus (QTL) identified for plant height (PH), heading date (HD), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content. This is a nieve model that does not include marker covariates. Both multi-environmental (ME) and within-environment scans were mapped in this image. Within environment scans included the Cunningham Research Station in Kinston, North Carolina in 2019 (KIN19) and 2020 (KIN20); the Lake Wheeler Field Laboratory in Raleigh, North Carolina in 2019 (RAL19) and 2020 (RAL20), and the Eastern Agricultural Research and Extension Center in Warsaw Virginia in 2019 (WAR19) and 2020 (WAR20). Support intervals are denoted by bars to the right of linkage groups. The y-axis displays a scale for length of linkage groups in centimorgans (cM). Each linkage group is displayed as a series of points (markers) and a connecting line (distance between markers). The length and position of the bar denotes the length and position of the QTL on the resultant linkage group, which is denoted by the title above the linkage group (e.g., 1B). The color of the corresponding support interval denotes the corresponding scan to which that interval belongs (e.g., heading date across environments = HD_ME). Markers labeled by green triangles denote peak QTL positions used as covariates in scans for visual rating of Fusarium head blight infection, Fusarium damaged kernels, and deoxynivalenol content. Covariate markers were selected based on their repeated occurrence across scans and their appearance in the multi-environmental scans of both plant height and heading date. 
+A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn from peak positions of significant quantitative trait locus (QTL) identified for plant height (PH), heading date (HD), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content. This is a nieve model that does not include marker covariates. Both multi-environmental (ME) and within-environment scans were mapped in this image. Within environment scans included the Cunningham Research Station in Kinston, North Carolina in 2019 (KIN19) and 2020 (KIN20); the Lake Wheeler Field Laboratory in Raleigh, North Carolina in 2019 (RAL19) and 2020 (RAL20), and the Eastern Agricultural Research and Extension Center in Warsaw Virginia in 2019 (WAR19) and 2020 (WAR20). Support intervals are denoted by bars to the right of linkage groups. The y-axis displays a scale for length of linkage groups in centimorgans (cM). Each linkage group is displayed as a series of points (markers) and a connecting line (distance between markers). The length and position of the bar denotes the length and position of the QTL on the resultant linkage group, which is denoted by the title above the linkage group (e.g., 1B). The color of the corresponding support interval denotes the corresponding scan to which that interval belongs (e.g., heading date across environments = HD_ME). Markers labeled by orange triangles denote peak QTL positions used as covariates in scans for visual rating of Fusarium head blight infection, Fusarium damaged kernels, and deoxynivalenol content. Covariate markers were selected based on their repeated occurrence across scans and their appearance in the multi-environmental scans of both plant height and heading date. 
 
 \\pagebreak
 
@@ -3961,7 +3346,7 @@ geometry: landscape
 
 ## Description
 
-Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for Fusarium head blight (FHB) disease resistance traits visual rating (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation at alpha equals 0.05 significance threshold. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map.
+Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for Fusarium head blight (FHB) disease resistance traits visual rating (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL) with heading date and plant height marker covariates. Environments assessed include: Kinston, NC 2019 (KIN19) and 2020 (KIN20); Raleigh, NC 2019 (RAL19) and 2020 (RAL20); Warsaw, VA 2019 (WAR19) and 2020 (WAR20); and the multi-environment (ME). The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation significance threshold at alpha equals 0.05. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map. All information regarding location, LOD and effect may be seen at the end of the document.
 
 \\pagebreak
 
@@ -4074,7 +3459,7 @@ geometry: landscape
 
 ## Description
 
-A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn from peak positions of significant quantitative trait locus (QTL) identified for Fusarium head blight (FHB) reaction traits visual rating (VR), Fusarium damaged kernels (FDK) and deoxynivalenol content (DON). Both multi-environmental (ME) and within-environment scans were mapped in this image. Within environment scans included the Cunningham Research Station in Kinston, North Carolina in 2019 (KIN2019) and 2020 (KIN2020); the Lake Wheeler Field Laboratory in Raleigh, North Carolina in 2019 (LW2019) and 2020 (LW2020), and the Eastern Agricultural Research and Extension Center in Warsaw Virginia in 2019 (VIR2019) and 2020 (VIR2020). Support intervals are denoted by bars to the right of linkage groups. The y-axis displays a scale for length of linkage groups in centimorgans (cM). Each linkage group is displayed as a series of points (markers) and a connecting line (distance between markers). The length and position of the bar denotes the length and position of the QTL on the resultant linkage group, which is denoted by the title above the linkage group (e.g., 1A). The color of the corresponding support interval denotes the corresponding scan to which that interval belongs (e.g., visual rating across environments = VR_ME).
+A visualization of all 1.5-likelyhood-of-odds (1.5-LOD) support intervals drawn from peak positions of significant quantitative trait locus (QTL) identified for Fusarium head blight (FHB) reaction traits visual rating (VR), Fusarium damaged kernels (FDK) and deoxynivalenol content (DON). Both multi-environmental (ME) and within-environment scans were mapped in this image. Within environment scans included the Cunningham Research Station in Kinston, North Carolina in 2019 (KIN2019) and 2020 (KIN2020); the Lake Wheeler Field Laboratory in Raleigh, North Carolina in 2019 (LW2019) and 2020 (LW2020), and the Eastern Agricultural Research and Extension Center in Warsaw Virginia in 2019 (VIR2019) and 2020 (VIR2020). Support intervals are denoted by bars to the right of linkage groups. The y-axis displays a scale for length of linkage groups in centimorgans (cM). Each linkage group is displayed as a series of points (markers) and a connecting line (distance between markers). The length and position of the bar denotes the length and position of the QTL on the resultant linkage group, which is denoted by the title above the linkage group (e.g., 1A). The color of the corresponding support interval denotes the corresponding scan to which that interval belongs (e.g., visual rating across environments = VR_ME). Markers labeled by orange triangles denote peak QTL positions used as covariates in scans for visual rating of Fusarium head blight infection, Fusarium damaged kernels, and deoxynivalenol content.
 
 \\pagebreak
 

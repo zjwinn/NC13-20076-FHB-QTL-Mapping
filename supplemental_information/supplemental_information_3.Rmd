@@ -10,11 +10,66 @@ geometry: landscape
 
 ## Description
 
-Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for heading date (HD) and plant height (PH), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). Presented are the results of scans performed without heading date and plant height marker covariates. In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation significance threshold at alpha equals 0.05. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map. All information regarding location, LOD and effect may be seen at the end of the document.
+Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans for heading date (HD) and plant height (PH), Fusarium head blight (FHB) visual ratings (VR), Fusarium damaged kernels (FDK), and deoxynivalenol (DON) content quantitative trait loci (QTL). Presented are the results of scans performed without heading date and plant height marker covariates. In the title of each graph is displayed which type of scan (IM vs MQM) and the trait which the scan belongs to. Environments assessed include: Kinston, NC 2019 (KIN19) and 2020 (KIN20); Raleigh, NC 2019 (RAL19) and 2020 (RAL20); Warsaw, VA 2019 (WAR19) and 2020 (WAR20); and the multi-environment (ME). The number following MQM titles indicates which round of MQM the scan belongs to (e.g., MQM 2 is the second round of multiple QTL mapping). The y-axis displays the likelihood of odds (LOD) score of every position across the genome. The dotted line denotes the 1000 permutation significance threshold at alpha equals 0.05. If the significance threshold is not displayed within the graph, this indicates that all peaks detected in the QTL scan were below the significance threshold. This is usually apparent in the last MQM scan performed. The x-axis displays each linkage group, designated by their corresponding chromosome names (e.g., 1A, 1B, 1D, etc.). The rug of hash marks denotes the cM position of each marker in the recombination map. All information regarding location, LOD and effect may be seen at the end of the document.
 
 \pagebreak
 
 
+
+
+## Heading Date Across All Environments
+![j](\./results_images/Scan_IM_HD_ME.jpg)
+![j](\./results_images/Scan_MQM1_HD_ME.jpg)
+![j](\./results_images/Scan_MQM2_HD_ME.jpg)
+\pagebreak
+
+
+## Heading Date in Kinston, NC - 2020
+![j](\./results_images/Scan_IM_HD_KIN20.jpg)
+![j](\./results_images/Scan_MQM1_HD_KIN20.jpg)
+![j](\./results_images/Scan_MQM2_HD_KIN20.jpg)
+\pagebreak
+
+
+## Heading Date in Raleigh, NC - 2019
+![j](\./results_images/Scan_IM_HD_RAL19.jpg)
+![j](\./results_images/Scan_MQM1_HD_RAL19.jpg)
+![j](\./results_images/Scan_MQM2_HD_RAL19.jpg)
+\pagebreak
+
+
+## Heading Date in Raleigh, NC - 2020
+![j](\./results_images/Scan_IM_HD_RAL20.jpg)
+![j](\./results_images/Scan_MQM1_HD_RAL20.jpg)
+![j](\./results_images/Scan_MQM2_HD_RAL20.jpg)
+\pagebreak
+
+
+## Heading Date in Warsaw, VA - 2020
+![j](\./results_images/Scan_IM_HD_WAR20.jpg)
+![j](\./results_images/Scan_MQM1_HD_WAR20.jpg)
+\pagebreak
+
+
+## Plant Height Across All Environments
+![j](\./results_images/Scan_IM_PH_ME.jpg)
+![j](\./results_images/Scan_MQM1_PH_ME.jpg)
+![j](\./results_images/Scan_MQM2_PH_ME.jpg)
+\pagebreak
+
+
+## Plant Height in Kinston, NC - 2020
+![j](\./results_images/Scan_IM_PH_KIN20.jpg)
+![j](\./results_images/Scan_MQM1_PH_KIN20.jpg)
+![j](\./results_images/Scan_MQM2_PH_KIN20.jpg)
+![j](\./results_images/Scan_MQM3_PH_KIN20.jpg)
+\pagebreak
+
+
+## Plant Height in Raleigh, NC - 2020
+![j](\./results_images/Scan_IM_PH_RAL20.jpg)
+![j](\./results_images/Scan_MQM1_PH_RAL20.jpg)
+\pagebreak
 
 
 ## Visual Ratings Across All Environments
