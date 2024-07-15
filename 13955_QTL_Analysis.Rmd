@@ -533,6 +533,22 @@ geno[1:2, 2] <- ""
 # Merge all the BLUEs
 BLUEs_all <- left_join(BLUEs_mem, BLUEs_loc, by = "GENOTYPE")
 
+# Write out BLUEs_all
+write.csv(BLUEs_all,
+          "blues_across_and_within_environment.csv",
+          row.names = FALSE)
+
+# Make and write out summary 
+BLUEs_all_summary <- data.frame(unclass(summary(BLUEs_all[, 2:ncol(BLUEs_all)])), check.names = FALSE, stringsAsFactors = FALSE)
+rownames(BLUEs_all_summary) <- c("Minimum", "First Quantile", "Median", "Mean", "Third Quantile", "Maximum", "N Missing Obs")
+BLUEs_all_summary[, 1:ncol(BLUEs_all_summary)] <- lapply(BLUEs_all_summary[, 1:ncol(BLUEs_all_summary)], function(x){gsub(".*:", "", x)})
+BLUEs_all_summary[nrow(BLUEs_all_summary),] <- ifelse(is.na(BLUEs_all_summary[nrow(BLUEs_all_summary),]), 0, BLUEs_all_summary[nrow(BLUEs_all_summary),])
+BLUEs_all_summary <- rownames_to_column(BLUEs_all_summary, var = "Summary Statistic")
+write.csv(BLUEs_all_summary, 
+          "blues_across_and_within_enviornment_summary.csv",
+          row.names = FALSE)
+
+
 # Merge the phenotype and genotype files
 insertme <- full_join(BLUEs_all, geno, by = "GENOTYPE")
 insertme <- insertme[order(insertme$dummy), ]  # Order by dummy
