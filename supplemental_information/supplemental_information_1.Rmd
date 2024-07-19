@@ -6,7 +6,7 @@ output: pdf_document
 
 ## Description
 
-List of major loci which affect plant height and heading date. For reduced height genes (e.g., _Rht_), wild type refers to the tall allele at the locus and dwarf refers to the dwarfing allele (e.g., _Rht-B1b_). For photoperiod genes (e.g., _Ppd_), photoperiod sensitive means that the line has the photoperiod sensitive allele which leads to response to day length and photoperiod insensitive means the line has the photoperiod sensitive allele which leads to a lack of response to day length. For vernalization genes (e.g., _Vrn_), long vernalization refers to the winter type haplotype at the locus and short vernalization stands for the spring type haplotype at the locus.  
+List of major loci which affect plant height and heading date. For reduced height genes (e.g., _Rht_), wild type refers to the tall allele at the locus and dwarf refers to the dwarfing allele (e.g., _Rht-B1b_). For photoperiod genes (e.g., _Ppd_), photoperiod sensitive means that the line has the photoperiod sensitive allele which leads to response to day length and photoperiod insensitive means the line has the photoperiod sensitive allele which leads to a lack of response to day length. For vernalization genes (e.g., _Vrn_), long vernalization refers to the three copy haplotype at the locus and short vernalization stands for the two copy haplotype at the locus.  
 
 ```{r, echo=FALSE}
 a <- read.csv('./results_csv_files/parental_marker_report.csv', check.names = FALSE)
