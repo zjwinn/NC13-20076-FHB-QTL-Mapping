@@ -179,7 +179,6 @@ format_qtlmap_geno <- function(
 }
 ```
 
-
 # Read in phenotypic data
 
 ```{r}
@@ -589,11 +588,11 @@ pairs_plot_dat<-BLUEs_mem
 
 # Rename columns for the pairs plot
 colnames(pairs_plot_dat) <- c("Genotype",
-                              "Visual Rating (1-9)",
-                              "Fusarium Damaged Kernels (%)",
-                              "Deoxynivalenol Content (PPM)",
-                              "Heading Date (Days)",
-                              "Plant Height (cm)")
+                              "FHB Visual Rating",
+                              "Fusarium Damaged Kernels",
+                              "Deoxynivalenol Content",
+                              "Heading Date",
+                              "Plant Height")
 
 # Visualize first
 pairs.panels(pairs_plot_dat[,2:ncol(pairs_plot_dat)],
