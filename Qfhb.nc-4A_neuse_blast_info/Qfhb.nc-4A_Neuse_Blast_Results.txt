@@ -1,0 +1,197 @@
+ IWGSC BLAST Results
+
+|IWA2900|IWA402|IWA2793|IWA482|
+
+
+
+BLASTN 2.2.28+
+
+
+Reference:
+Stephen F. Altschul, Thomas L. Madden, Alejandro A. Schäffer,
+Jinghui Zhang, Zheng Zhang, Webb Miller, and David J. Lipman (1997),
+"Gapped BLAST and PSI-BLAST: a new generation of protein database
+search programs", Nucleic Acids Res. 25:3389-3402.
+
+
+
+Database: IWGSC reference v1.0 chromosome 4A only
+           1 sequences; 744,588,157 total letters
+
+
+
+Query= IWA2900
+
+Length=400
+                                                                      Score     E
+Sequences producing significant alignments:                          (Bits)  Value
+
+chr4A download wheat_assemblies                                           717    0.0  
+
+
+>IWA2900 on chr4A download wheat_assemblies 
+Length=744588157
+
+ Score =  717 bits (794),  Expect = 0.0
+ Identities = 399/400 (99%), Gaps = 0/400 (0%)
+ Strand=Plus/Plus
+
+Query  1          CATGCCATCGACATGTATCTAAAGGTAATATTTTTCGCATACATCTTCTATTTCCAGTTA  60
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  544890972  CATGCCATCGACATGTATCTAAAGGTAATATTTTTCGCATACATCTTCTATTTCCAGTTA  544891031
+
+Query  61         GTATGTCTGCTGTTGGGAGTTTGAAACTTACATGCAATTCCATGCTTACAGGAGCACCCC  120
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  544891032  GTATGTCTGCTGTTGGGAGTTTGAAACTTACATGCAATTCCATGCTTACAGGAGCACCCC  544891091
+
+Query  121        AGCCTATCAAAGAGCGAAAAGAAGAGATTATGTGGATTGATGGACTGCAAGAAGCTGTCC  180
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  544891092  AGCCTATCAAAGAGCGAAAAGAAGAGATTATGTGGATTGATGGACTGCAAGAAGCTGTCC  544891151
+
+Query  181        CAGGAGGCCTGCATGCACGTGGTGCAGAATGAACGGCTTCCTCTGCGTGTGGTTGTGCAA  240
+                  ||||||||||||||||||| ||||||||||||||||||||||||||||||||||||||||
+Sbjct  544891152  CAGGAGGCCTGCATGCACGCGGTGCAGAATGAACGGCTTCCTCTGCGTGTGGTTGTGCAA  544891211
+
+Query  241        GTTCTCTTCTTTGAGCAAGTCCGAGCATCAGACGCTTCTGCCAGGAGTGACTCTGGAGCC  300
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  544891212  GTTCTCTTCTTTGAGCAAGTCCGAGCATCAGACGCTTCTGCCAGGAGTGACTCTGGAGCC  544891271
+
+Query  301        GACCTTTCATCTGCTGTTCATTCGCTTCTTCCCAGAGAGAATGGCAACTCGTACGGCAGC  360
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  544891272  GACCTTTCATCTGCTGTTCATTCGCTTCTTCCCAGAGAGAATGGCAACTCGTACGGCAGC  544891331
+
+Query  361        TCCAGGTCAGCGGCCACAACAACAACGGAAGAGGAAGGTA  400
+                  ||||||||||||||||||||||||||||||||||||||||
+Sbjct  544891332  TCCAGGTCAGCGGCCACAACAACAACGGAAGAGGAAGGTA  544891371
+
+Query= IWA402
+
+Length=401
+                                                                      Score     E
+Sequences producing significant alignments:                          (Bits)  Value
+
+chr4A download wheat_assemblies                                           724    0.0  
+
+
+>IWA402 on chr4A download wheat_assemblies 
+Length=744588157
+
+ Score =  724 bits (802),  Expect = 0.0
+ Identities = 401/401 (100%), Gaps = 0/401 (0%)
+ Strand=Plus/Plus
+
+Query  1          TTGATATATCTAACCGAGGTCTGTTGGATTCTCTTCAAAATGAGCTTTCAACCTACAAGG  60
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  567668221  TTGATATATCTAACCGAGGTCTGTTGGATTCTCTTCAAAATGAGCTTTCAACCTACAAGG  567668280
+
+Query  61         AAGCAAAGGGCATTGCTGTTAGAAGGGAATAAAGGCAGAATGACTACGGGATGAAGGTGT  120
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  567668281  AAGCAAAGGGCATTGCTGTTAGAAGGGAATAAAGGCAGAATGACTACGGGATGAAGGTGT  567668340
+
+Query  121        TTCTTGTTATGAAATATTAAGAATTGTGAATACTATATATTGATGCCTTATATCAATTAA  180
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  567668341  TTCTTGTTATGAAATATTAAGAATTGTGAATACTATATATTGATGCCTTATATCAATTAA  567668400
+
+Query  181        ATGCTACATCATGAACATAGTTGGTGAATGATACTCCTTCCATTCCTAAATACAAGGTGT  240
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  567668401  ATGCTACATCATGAACATAGTTGGTGAATGATACTCCTTCCATTCCTAAATACAAGGTGT  567668460
+
+Query  241        TAGTTTTTCCAAAAAGTCAAACCTTGTCTATGTTTGACAAGTTTATAACAAAATATGTCA  300
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  567668461  TAGTTTTTCCAAAAAGTCAAACCTTGTCTATGTTTGACAAGTTTATAACAAAATATGTCA  567668520
+
+Query  301        AGAACTACAATACTAAAATATAAAAATATATCCACGTCGAATCTAGTGATAATTATTTGG  360
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  567668521  AGAACTACAATACTAAAATATAAAAATATATCCACGTCGAATCTAGTGATAATTATTTGG  567668580
+
+Query  361        AGCAACTAATAATTATATTAGGATGTCGTTTTCAAACACTC  401
+                  |||||||||||||||||||||||||||||||||||||||||
+Sbjct  567668581  AGCAACTAATAATTATATTAGGATGTCGTTTTCAAACACTC  567668621
+
+Query= IWA2793
+
+Length=401
+                                                                      Score     E
+Sequences producing significant alignments:                          (Bits)  Value
+
+chr4A download wheat_assemblies                                           724    0.0  
+
+
+>IWA2793 on chr4A download wheat_assemblies 
+Length=744588157
+
+ Score =  724 bits (802),  Expect = 0.0
+ Identities = 401/401 (100%), Gaps = 0/401 (0%)
+ Strand=Plus/Plus
+
+Query  1          TCCATCCCAATGAAGGATGGCTGGAAGAGAACCTCAGGACAACGGAAACGCTCAGAACCA  60
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  576702422  TCCATCCCAATGAAGGATGGCTGGAAGAGAACCTCAGGACAACGGAAACGCTCAGAACCA  576702481
+
+Query  61         ATGGTGATAACCTGCCCATCAGGCAGCTCATAGCTCTTCTCCACAGAAGAGCTGGTCTTG  120
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  576702482  ATGGTGATAACCTGCCCATCAGGCAGCTCATAGCTCTTCTCCACAGAAGAGCTGGTCTTG  576702541
+
+Query  121        GAAGTCTCCATTTCCTGGTCATAGTCCAGGGCAATGTAGGACAGCTTCTCCTTCACGTCC  180
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  576702542  GAAGTCTCCATTTCCTGGTCATAGTCCAGGGCAATGTAGGACAGCTTCTCCTTCACGTCC  576702601
+
+Query  181        CTCACAATTTCCCGCTCAGCGGTGGTGGTGAATGAGTAACCACGCTCAGTCAGGATCTTC  240
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  576702602  CTCACAATTTCCCGCTCAGCGGTGGTGGTGAATGAGTAACCACGCTCAGTCAGGATCTTC  576702661
+
+Query  241        ATGAGGTGATCGGTGAGATCACGCCCAGCCAAGTCGAGACGAAGGATAGCATGGGGGAGA  300
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  576702662  ATGAGGTGATCGGTGAGATCACGCCCAGCCAAGTCGAGACGAAGGATAGCATGGGGGAGA  576702721
+
+Query  301        GCATATCCTTCGTAGATGGGGACAGTGTGGCTGACACCATCTCCAGAGTCCAGCACGATA  360
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  576702722  GCATATCCTTCGTAGATGGGGACAGTGTGGCTGACACCATCTCCAGAGTCCAGCACGATA  576702781
+
+Query  361        CCTGACAAGTTCAAGAGGGCACATTTGAGTTATTGATAAAT  401
+                  |||||||||||||||||||||||||||||||||||||||||
+Sbjct  576702782  CCTGACAAGTTCAAGAGGGCACATTTGAGTTATTGATAAAT  576702822
+
+Query= IWA482
+
+Length=401
+                                                                      Score     E
+Sequences producing significant alignments:                          (Bits)  Value
+
+chr4A download wheat_assemblies                                           724    0.0  
+
+
+>IWA482 on chr4A download wheat_assemblies 
+Length=744588157
+
+ Score =  724 bits (802),  Expect = 0.0
+ Identities = 401/401 (100%), Gaps = 0/401 (0%)
+ Strand=Plus/Plus
+
+Query  1          TTCTCTCTTGTCACTTTGCTGTTTCTGTGACCGCAGAAAAGGCATTTGGAGATGATGGAT  60
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  581869108  TTCTCTCTTGTCACTTTGCTGTTTCTGTGACCGCAGAAAAGGCATTTGGAGATGATGGAT  581869167
+
+Query  61         GCTTGAGACAGCCAAAGGAACTTTCAATTAATAAAGTTGGACATGGTTAGTATGCCCACA  120
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  581869168  GCTTGAGACAGCCAAAGGAACTTTCAATTAATAAAGTTGGACATGGTTAGTATGCCCACA  581869227
+
+Query  121        GTGCAATCAAATTCAGACATAAATTATTTTACATGTTTGTCTTTCAAACTATATGATCAA  180
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  581869228  GTGCAATCAAATTCAGACATAAATTATTTTACATGTTTGTCTTTCAAACTATATGATCAA  581869287
+
+Query  181        TTGGTTCCTGTGATATCATTCGACTGTTTATGTTGAATGGCCCAAGAATGTGTTGTCCCA  240
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  581869288  TTGGTTCCTGTGATATCATTCGACTGTTTATGTTGAATGGCCCAAGAATGTGTTGTCCCA  581869347
+
+Query  241        TGTGCAGAACAACAAGGAAATTCCATATTCACTAAAAAGCAATAAAATTGAGCATATCTA  300
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  581869348  TGTGCAGAACAACAAGGAAATTCCATATTCACTAAAAAGCAATAAAATTGAGCATATCTA  581869407
+
+Query  301        AAGAAAATGCAGCTGATTTAGACGGTGCTAATAGTTTTAAACACAATCATGTTGCATTTC  360
+                  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Sbjct  581869408  AAGAAAATGCAGCTGATTTAGACGGTGCTAATAGTTTTAAACACAATCATGTTGCATTTC  581869467
+
+Query  361        AGTGGACTGCATTGTTCTTATTTAGAAAAATAATATTCGAA  401
+                  |||||||||||||||||||||||||||||||||||||||||
+Sbjct  581869468  AGTGGACTGCATTGTTCTTATTTAGAAAAATAATATTCGAA  581869508
