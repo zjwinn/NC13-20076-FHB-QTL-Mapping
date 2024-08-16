@@ -3401,7 +3401,7 @@ output:
 geometry: "left=1cm,right=1cm,top=1cm,bottom=1cm,landscape"
 ---
 
-\pagenumbering{gobble}
+\\pagenumbering{gobble}
 
 ## Description
 
@@ -3547,7 +3547,7 @@ output:
 geometry: "left=1cm,right=1cm,top=1cm,bottom=1cm,landscape"
 ---
 
-\pagenumbering{gobble}
+\\pagenumbering{gobble}
 
 ## Description
 
