@@ -114,7 +114,8 @@ selection <- haplotypes[haplotypes$Call!="UNKNOWN",]
 validation <- selection[,c("Line", "Call")]
 colnames(validation)[1] <- "GENOTYPE"
 validation <- dplyr::left_join(pheno, validation, by = "GENOTYPE")
-validation <- tidyr::drop_na(validation, DON, Call)
+validation <- tidyr::drop_na(validation, `DON Content (PPM)`, Call)
+colnames(validation)[11] <- "DON"
 
 # Regress
 summary(lm(DON~Call, data = validation))

@@ -1,15 +1,573 @@
-
 ---
 title: "Supplemental Information 2"
 output: pdf_document
 ---
 
-## Description
+```{r setup, include=FALSE}
+options(width = 300)
+```
 
-Visualization of linkage-map marker centimorgan (cM) versus megabase pair (Mbp) distance. Each subgraph header displays the name of each linkage group (chromosome). The x-axis displays the physical Mbp distance between markers. The y-axis displays the recombination-based cM distance between markers.
+# Description
 
-\pagebreak
+An R markdown of the phenotypic analysis and relevant information pertaining to interpretation of results. Analysis will be performed and results will be explained after relevant chunk information.  
 
-![](\./results_images/cM_vs_bp_comparison.jpg)
+```{r, echo=FALSE, results='hide'}
+# Load necessary libraries
+library(gaston)
+library(tidyverse)
+library(asreml)
+library(ASMap)
+library(qtl)
+library(psych)
+library(knitr)
+library(ggplot2)
+library(patchwork)
 
+# Read in data
+pheno <- read.csv("NC13955_Combined_Data_Final.csv")
 
+# Read in potential selfs
+selfs <- read.csv("list_of_potential_selfs.csv")
+
+# Remove selfs
+pheno <- pheno %>%
+  filter(!GENOTYPE %in% selfs$GENOTYPE)
+
+# Ensure the correct data types
+pheno[, 1:7] <- lapply(pheno[, 1:7], as.factor)
+pheno[, 8:ncol(pheno)] <- lapply(pheno[, 8:ncol(pheno)], as.numeric)
+
+# Colnames
+colnames(pheno)[8:ncol(pheno)] <- c("Heading Date (Days)",
+                                    "Visual Rating (0-9)",
+                                    "Fusarium Damaged Kernels (%)",
+                                    "DON Content (PPM)", 
+                                    "Plant Height (cm)")
+```
+
+# Single environment analysis
+
+Here I am going through each environment and assessing the significance of the genotype effect using the following model 
+
+$$
+y_{ij}=\mu+G_i+r_j+\varepsilon_{ij}
+$$
+
+Where G is the fixed genotype effect, r is the random replication effect, and $\varepsilon$ is the residual error. Each loop will be denoted using "#" as the dilimeter and the environment assessed will be denoted by the assigned short hand (KIN = Kinston, NC; RAL = Raleigh, NC; WAR = Warsaw, VA; 19 = 2019; 20 = 2020). We will use a fully random model to estimate heritability via the following equation:
+
+$$
+h^2=\frac{\sigma^2_g}{\sigma^2_g+\sigma^2_\varepsilon}
+$$
+
+```{r}
+# Set up lists for loop
+env <- levels(pheno$ENV)
+traits <- colnames(pheno)[8:12]
+
+# Create dataframe for means output
+BLUEs_loc <- data.frame(GENOTYPE = unique(pheno$GENOTYPE))
+h2_envs <- c()
+
+# Run models for each environment
+for (i in env) {
+  for (j in traits) {
+    # Print message
+    print_message <- paste("### Analyzing", j, "in", i, "###")
+    print(paste(rep("#", nchar(print_message)), collapse = ""))
+    print(print_message)
+    print(paste(rep("#", nchar(print_message)), collapse = ""))
+    
+    # Read subset of phenotype data
+    pheno_subset <- na.omit(pheno[pheno$ENV == i, c("GENOTYPE", "REP", j)])
+    colnames(pheno_subset)[3] <- "Y"
+    
+    # Check if subset is empty
+    if (nrow(na.omit(pheno_subset)) == 0) {
+      # Throw message
+      print(paste("###", j, "not taken in", i, "moving on..."))
+      remove(pheno_subset)
+      next
+    }
+    
+    # If the trait is abnormally distributed
+    if (j %in% c("Visual Rating (0-9)", "Fusarium Damaged Kernels (%)", "DON Content (PPM)")) {
+      # Run model and pull estimates
+      fit1 <-  suppressMessages(
+        suppressWarnings(
+          asreml(fixed = Y ~ GENOTYPE,
+                 random = ~ REP,
+                 residual = ~ units,
+                 data = pheno_subset,
+                 family = asr_poisson(),
+                 maxit = 75,
+                 trace = FALSE)
+          )
+        )
+      
+            # Run model and pull estimates
+      fit2 <-  suppressMessages(
+        suppressWarnings(
+          asreml(fixed = Y ~ 1,
+                 random = ~ GENOTYPE+REP,
+                 residual = ~ units,
+                 data = pheno_subset,
+                 family = asr_poisson(),
+                 maxit = 75,
+                 trace = FALSE)
+          )
+        )
+      
+      # Check if model converges and if it results in critical error, 
+      # default to RCBD with normal distribution
+      if (fit1$converge == FALSE | (i == "WAR20" & j == "Visual Rating (0-9)")) {
+        # Fit model
+        fit1 <- suppressMessages(
+          suppressWarnings(
+            asreml(fixed = Y ~ GENOTYPE,
+                   random = ~ REP,
+                   residual = ~ units,
+                   data = pheno_subset,
+                   maxit = 75, 
+                   trace = FALSE)
+          )
+        )
+        
+        # Fit model
+        fit2 <- suppressMessages(
+          suppressWarnings(
+            asreml(fixed = Y ~ 1,
+                   random = ~ GENOTYPE+REP,
+                   residual = ~ units,
+                   data = pheno_subset,
+                   maxit = 75, 
+                   trace = FALSE)
+          )
+        )
+        # Update model
+        fit1 <- update.asreml(fit1)
+        fit2 <- update.asreml(fit2)
+      }
+      
+      # Print message
+      print_message <- paste("### Summary of fixed effect model for", j, "in", i, "###")
+      print(paste(rep("#", nchar(print_message)), collapse = ""))
+      print(print_message)
+      print(paste(rep("#", nchar(print_message)), collapse = ""))
+      
+      # Get quick summary (comment out for markdown) 
+      print(summary(fit1))
+      
+      # Pull BLUEs
+      pred <- predict(fit1, classify = "GENOTYPE", maxit = 75)$pvals[, c("GENOTYPE", "predicted.value")]
+      
+      # Rename
+      colnames(pred)[2] <- paste(j, "_", i, sep = "")
+      
+      # Bind
+      BLUEs_loc <- left_join(BLUEs_loc, pred, by = "GENOTYPE")
+      
+      # Print message
+      print_message <- paste("### Summary of random effect model for", j, "in", i, "###")
+      print(paste(rep("#", nchar(print_message)), collapse = ""))
+      print(print_message)
+      print(paste(rep("#", nchar(print_message)), collapse = ""))
+      
+      # Print summary
+      print(summary(fit2))
+      
+      # Estimate heritability
+      h2 <- vpredict(fit2, h2~V2/(V2+V3))
+      
+      # Print message
+      print_message <- paste("### Narrow-sense heritability of", j, "in", i, "###")
+      print(paste(rep("#", nchar(print_message)), collapse = ""))
+      print(print_message)
+      print(paste(rep("#", nchar(print_message)), collapse = "")) 
+      
+      # Table
+      print(knitr::kable(h2, digits = 2))
+      
+      # Add to h2
+      h2_envs <- rbind(h2_envs,
+                       data.frame(Environment = i,
+                                  Trait = j,
+                                  h2))
+      
+    } else {
+      # Run model and pull estimates 
+      fit1 <- suppressMessages(
+        suppressWarnings(
+          asreml(fixed = Y ~ GENOTYPE,
+                 random = ~ REP,
+                 residual = ~ units,
+                 data = pheno_subset,
+                 trace = FALSE)          
+        )
+      ) 
+      
+      # Run model and pull estimates 
+      fit2 <- suppressMessages(
+        suppressWarnings(
+          asreml(fixed = Y ~ 1,
+                 random = ~ GENOTYPE+REP,
+                 residual = ~ units,
+                 data = pheno_subset,
+                 trace = FALSE)          
+        )
+      ) 
+      
+      # Print message
+      print_message <- paste("### Summary of fixed effect model for", j, "in", i, "###")
+      print(paste(rep("#", nchar(print_message)), collapse = ""))
+      print(print_message)
+      print(paste(rep("#", nchar(print_message)), collapse = ""))
+      
+      # Get quick summary (comment out for markdown) 
+      print(summary(fit1))
+
+      # Get BLUEs
+      pred <- predict(fit1, classify = "GENOTYPE")$pvals[, c("GENOTYPE", "predicted.value")]
+      
+      # Rename
+      colnames(pred)[2] <- paste(j, "_", i, sep = "")
+      
+      # Bind
+      BLUEs_loc <- left_join(BLUEs_loc, pred, by = "GENOTYPE")
+      
+      # Print message
+      print_message <- paste("### Summary of random effect model for", j, "in", i, "###")
+      print(paste(rep("#", nchar(print_message)), collapse = ""))
+      print(print_message)
+      print(paste(rep("#", nchar(print_message)), collapse = ""))
+      
+      # Print summary
+      print(summary(fit2))
+      
+      # Estimate heritability
+      h2 <- vpredict(fit2, h2~V2/(V2+V3))
+      
+      # Print message
+      print_message <- paste("### Narrow-sense heritability of", j, "in", i, "###")
+      print(paste(rep("#", nchar(print_message)), collapse = ""))
+      print(print_message)
+      print(paste(rep("#", nchar(print_message)), collapse = "")) 
+      
+      # Table
+      print(knitr::kable(h2, digits = 2))
+      
+      # Add to h2
+      h2_envs <- rbind(h2_envs,
+                       data.frame(Environment = i,
+                                  Trait = j,
+                                  h2))      
+      
+    }
+    # Remove temporary objects
+    remove(pheno_subset, fit1, fit2, pred, h2)
+  }
+}
+```
+
+## Visualization
+
+Here I visualize the results of the above loops. Output from these loops are pairs plots which show scatter plots fit with a linear regression in the lower triangle. The diagonal of these plots shows the distribution of each trait which is listed as plain text above the distribution with the corresponding name of the environment (KIN = Kinston, NC; RAL = Raleigh, NC; WAR = Warsaw, VA; 19 = 2019; 20 = 2020).
+
+```{r, fig.width=10, fig.height=10}
+# For i in environments and traits
+for(i in traits) {
+  # Parse blues and h2
+  i <- gsub("\\([^\\)]*\\)", "", i)
+  i <- trimws(i)
+  temp1 <- BLUEs_loc[,grep(i,colnames(BLUEs_loc))]
+  temp2 <- h2_envs[grep(i, h2_envs$Trait),]
+  colnames(temp1) <- gsub("_", " ",colnames(temp1))
+  
+  pairs.panels(temp1,
+               hist.col = "gray",
+               lm = TRUE,
+               stars = TRUE,
+               digits = 2,
+               density = FALSE,
+               ellipses = FALSE,
+               main = paste("Visualization of", i, "correlations across environments"))
+}
+```
+
+# Assess Genotype-by-Environment Analysis
+
+Here I run a model for each trait:
+
+$$
+y_{ijk}=\mu+G_i+E_j+GE_{ij}+er_{jk}+\varepsilon_{ijk}
+$$
+
+Where G is the fixed genotype effect, E is the fixed environment effect, GE is the fixed genotype by environment interaction, er is the random environment by replication interaction, and $\varepsilon$ is the residual error. All random effects are individually and identically distributed. 
+
+```{r}
+# Define traits
+traits <- colnames(pheno)[8:12]
+
+# Create dataframe for predictions
+BLUEs_mem <- data.frame(GENOTYPE = unique(pheno$GENOTYPE))
+
+# Run MEMLM loop for each trait
+for (i in traits) {
+  
+  # Print message for analyzing each trait
+  print_message <- paste("### Analyzing", i, "###")
+  print(paste(rep("#", nchar(print_message)), collapse = ""))
+  print(print_message)
+  print(paste(rep("#", nchar(print_message)), collapse = ""))
+  
+  # Subset data
+  pheno_subset <- na.omit(pheno[, c("GENOTYPE", "YEAR", "ENV", "REP", i)])
+  
+  # Redefine data types
+  pheno_subset[, 1:4] <- lapply(pheno_subset[, 1:4], as.factor)
+  pheno_subset[, 5] <- as.numeric(pheno_subset[, 5])
+  colnames(pheno_subset)[5] <- "Y"
+  
+  # Run mixed effects model for traits
+  if (i %in% c("Visual Rating (0-9)", "Fusarium Damaged Kernels (%)", "DON Content (PPM)")) {
+    # Suppress output from the first model with Poisson distribution
+    suppressWarnings(suppressMessages({
+      capture.output({
+        fit <- asreml(fixed = Y ~ GENOTYPE,
+                      random = ~ ENV + GENOTYPE:ENV + REP:ENV,
+                      residual = ~ units,
+                      data = pheno_subset,
+                      family = asr_poisson(),
+                      maxit = 75,
+                      trace = FALSE)
+      }, file = NULL)
+    }))
+    
+    # Suppress output from the second model with Poisson distribution
+    suppressWarnings(suppressMessages({
+      capture.output({
+        fit2 <- asreml(fixed = Y ~ GENOTYPE + ENV + GENOTYPE:ENV,
+                       random = ~ REP:ENV,
+                       residual = ~ units,
+                       data = pheno_subset,
+                       family = asr_poisson(),
+                       maxit = 75,
+                       trace = FALSE)
+      }, file = NULL)
+    }))
+    
+    # If model fails to converge, fit normal distribution model and suppress output
+    if(fit$converge==FALSE | fit2$converge==FALSE){
+      suppressWarnings(suppressMessages({
+        capture.output({
+          fit <- asreml(fixed = Y ~ GENOTYPE,
+                        random = ~ ENV + GENOTYPE:ENV + REP:ENV,
+                        residual = ~ units,
+                        data = pheno_subset,
+                        maxit = 75,
+                        trace = FALSE)
+        }, file = NULL)
+      }))
+      
+      suppressWarnings(suppressMessages({
+        capture.output({
+          fit2 <- asreml(fixed = Y ~ GENOTYPE + ENV + GENOTYPE:ENV ,
+                         random = ~ REP:ENV,
+                         residual = ~ units,
+                         data = pheno_subset,
+                         maxit = 75,
+                         trace = FALSE)
+        }, file = NULL)
+      }))
+    }
+  } else {
+    # Suppress output from the model with normal distribution
+    suppressWarnings(suppressMessages({
+      capture.output({
+        fit <- asreml(fixed = Y ~ GENOTYPE,
+                      random = ~ ENV + GENOTYPE:ENV + REP:ENV,
+                      residual = ~ units,
+                      data = pheno_subset,
+                      maxit = 75,
+                      trace = FALSE)
+      }, file = NULL)
+    }))
+    
+    # Suppress output from the second model with normal distribution
+    suppressWarnings(suppressMessages({
+      capture.output({
+        fit2 <- asreml(fixed = Y ~ GENOTYPE + ENV + GENOTYPE:ENV ,
+                       random = ~ REP:ENV,
+                       residual = ~ units,
+                       data = pheno_subset,
+                       maxit = 75,
+                       trace = FALSE)
+      }, file = NULL)
+    }))
+  }
+  
+  # Print summary of Wald test for fit2
+  temp1 <- capture.output({
+    wald_output <- as.data.frame(wald(fit2))
+  }, file = NULL)
+  
+  print(wald_output)
+  
+  # Get predictions for GENOTYPE
+  pred <- predict(fit, classify = "GENOTYPE")$pvals[, 1:2]
+  colnames(pred)[2] <- paste(i, "ME", sep = "_") 
+  
+  # Left join predictions to the main dataframe
+  BLUEs_mem <- left_join(BLUEs_mem, pred, by = "GENOTYPE")
+  
+  # Remove temporary objects
+  rm(pheno_subset, pred)
+}
+```
+
+# Heritability Variance Component Estimates
+
+Here we will us a fully random version of the above model to assess the per-plot and entry-mean heritability of each trait across environments. Variance components will be shown for each loop. 
+
+```{r}
+# Make an empty data frame for the heritability estimates
+h2s <- data.frame(Trait = character(), 
+                  Type = character(), 
+                  Estimation = numeric(), 
+                  SE = numeric())
+
+# Calculate the harmonic means for each trait
+e_traits <- list()
+r_traits <- list()
+
+for (j in traits) {
+  # Subset data and only take complete cases
+  a <- pheno %>% 
+    drop_na(all_of(j))
+  
+  # Get the number of observations per genotype
+  obs_per_ind <- aggregate(a[, j] ~ GENOTYPE, 
+                           data = a,
+                           length)
+  
+  # Calculate the harmonic mean of replications
+  r <- (1 / mean(1 / obs_per_ind$`a[, j]`))
+  
+  # Store harmonic mean in r_traits list
+  r_traits[j] <- r
+  
+  # Create a new object called e
+  e <- c()
+  
+  # For each genotype in the phenotypic dataset
+  for (i in unique(pheno$GENOTYPE)) {
+    # Get all observations for each genotype
+    a <- na.omit(pheno[pheno$GENOTYPE == i, c("ENV", j)])
+    
+    # Get the number of environments the genotype was observed in
+    a <- length(unique(a$ENV))
+    
+    # Calculate harmonic mean for environments
+    a <- ifelse(a == 0, 0, 1 / a)
+    
+    # Add this value to e
+    e <- rbind(e, a)
+  }
+  
+  # Store harmonic mean of environments in e_traits list
+  e_traits[j] <- (1 / mean(e)) 
+  
+  # Clean up temporary variables
+  remove(a, obs_per_ind, r, e)
+}
+
+# Loop through each trait for heritability estimation
+for (i in traits) {
+  # Print message for analyzing each trait
+  print_message <- paste("### Analyzing", i, "###")
+  print(paste(rep("#", nchar(print_message)), collapse = ""))
+  print(print_message)
+  print(paste(rep("#", nchar(print_message)), collapse = ""))
+  
+  # Determine number of locations
+  n_loc <- pheno %>% 
+    select(ENV, YEAR, LOC, all_of(i)) %>% 
+    drop_na() %>% 
+    distinct(ENV)
+  n_loc <- as.numeric(nrow(n_loc))
+  
+  # Determine the number of replications
+  n_rep <- n_loc * 2
+  
+  # Determine the number of years
+  n_year <- pheno %>% 
+    select(ENV, YEAR, LOC, all_of(i)) %>% 
+    drop_na() %>% 
+    distinct(YEAR)
+  n_year <- as.numeric(count(n_year))
+  
+  # Get the harmonic mean of environments
+  e <- as.numeric(e_traits[i])
+  
+  # Get the harmonic mean of replications
+  r <- as.numeric(r_traits[i])
+  
+  # If the trait has been observed over many years
+  if (n_year >= 2) {
+    # If the trait is a disease reaction trait
+    if (i %in% c("Visual Rating (0-9)", "Fusarium Damaged Kernels (%)", "DON Content (PPM)")) {
+      # Run model for Poisson distributed traits
+      mlm <- asreml(fixed = pheno[, i] ~ 1,
+                    random = ~ GENOTYPE +
+                      ENV +
+                      GENOTYPE:ENV +
+                      REP:ENV,
+                    residual = ~ idv(units),
+                    data = pheno,
+                    maxit = 75,
+                    family = asr_poisson(),
+                    trace = FALSE)
+    } else {
+      # Run model for normally distributed traits
+      mlm <- asreml(fixed = pheno[, i] ~ 1,
+                    random = ~ (GENOTYPE) +
+                      ENV +
+                      GENOTYPE:ENV+
+                      REP:ENV,
+                    residual = ~ idv(units),
+                    data = pheno,
+                    maxit = 75,
+                    trace = FALSE)
+    }
+  # If the trait has been only observed in one year
+  } else {
+    # Run model for single year data
+    mlm <- asreml(fixed = pheno[, i] ~ 1,
+                  random = ~ (GENOTYPE) +
+                    ENV +
+                    GENOTYPE:ENV+
+                    REP:ENV,
+                  residual = ~ idv(units),
+                  data = pheno,
+                  maxit = 75,
+                  trace = FALSE)
+  }
+  
+  # Print summary of variance components
+  print(summary(mlm)$varcomp)
+  
+  # Predict heritability estimates
+  pph2 <- vpredict(mlm, 
+                   h2 ~ V2 / (V2 + V3 + V4))
+  
+  emh2 <- vpredict(mlm,
+                   h2 ~ V2 / (V2 + (V3 / e) + (V4 / (e * r))))
+  
+  # Bind predictions to h2s data frame
+  a <- rbind(pph2, emh2)
+  a <- cbind(data.frame(Trait = c(i, i)), data.frame(Type = c("Per-Plot", "Entry-Mean")), a)
+  h2s <- rbind(h2s, a)
+  
+  # Clean up temporary variables
+  remove(mlm, pph2, emh2, n_loc, n_rep, n_year, e, r, a)
+}
+```

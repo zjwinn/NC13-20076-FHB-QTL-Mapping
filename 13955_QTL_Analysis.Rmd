@@ -448,20 +448,24 @@ for (i in traits) {
       mlm <- asreml(fixed = pheno[, i] ~ 1,
                     random = ~ GENOTYPE +
                       ENV +
-                      GENOTYPE:ENV,
+                      GENOTYPE:ENV +
+                      REP:ENV,
                     residual = ~ idv(units),
                     data = pheno,
                     maxit = 75,
-                    family = asr_poisson())
+                    family = asr_poisson(),
+                    trace = FALSE)
     } else {
       # Run model for normally distributed traits
       mlm <- asreml(fixed = pheno[, i] ~ 1,
                     random = ~ (GENOTYPE) +
                       ENV +
-                      GENOTYPE:ENV,
+                      GENOTYPE:ENV+
+                      REP:ENV,
                     residual = ~ idv(units),
                     data = pheno,
-                    maxit = 75)
+                    maxit = 75,
+                    trace = FALSE)
     }
   # If the trait has been only observed in one year
   } else {
@@ -469,10 +473,12 @@ for (i in traits) {
     mlm <- asreml(fixed = pheno[, i] ~ 1,
                   random = ~ (GENOTYPE) +
                     ENV +
-                    GENOTYPE:ENV,
+                    GENOTYPE:ENV+
+                    REP:ENV,
                   residual = ~ idv(units),
                   data = pheno,
-                  maxit = 75)
+                  maxit = 75,
+                  trace = FALSE)
   }
   
   # Print summary of variance components
@@ -866,7 +872,7 @@ for (i in traits){
                    model = "normal", 
                    method = "hk", 
                    n.perm = nperms, 
-                   n.cluster = parallel::detectCores()-1) #set threshold
+                   n.cluster = ifelse(parallel::detectCores()-1>=10, 10, parallel::detectCores()-1)) #set threshold
   print("Done")
   
   # Plot QTL Scan
@@ -1939,7 +1945,7 @@ for (i in traits){
                    model = "normal", 
                    method = "hk", 
                    n.perm = nperms, 
-                   n.cluster = parallel::detectCores()-1) #set threshold
+                   n.cluster = ifelse(parallel::detectCores()-1>=10, 10, parallel::detectCores()-1)) #set threshold
   print("Done")
   
   # Plot QTL Scan
@@ -3243,10 +3249,21 @@ rmarkdown::render("supplemental_information_1.Rmd", output_format = "pdf_documen
 
 ## Supplemental Information 2
 
+This line I am running this file that I wrote elsewhere.
+
+```{r}
+# Render the Markdown file to PDF
+if("supplemental_information_2.Rmd" %in% list.files()){
+rmarkdown::render("supplemental_information_2.Rmd", output_format = "pdf_document")
+}
+```
+
+## Supplemental Information 3
+
 ```{r}
 markdown_content <- c("
 ---
-title: \"Supplemental Information 2\"
+title: \"Supplemental Information 3\"
 output: pdf_document
 ---
 
@@ -3261,19 +3278,19 @@ Visualization of linkage-map marker centimorgan (cM) versus megabase pair (Mbp) 
 ")
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_2.Rmd")
+writeLines(markdown_content, "supplemental_information_3.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_2.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_3.Rmd", output_format = "pdf_document")
 ```
 
-## Supplemental Information 3
+## Supplemental Information 4
 
 ```{r}
 # Create the Markdown content
 markdown_content <- c("
 ---
-title: \"Supplemental Information 3\"
+title: \"Supplemental Information 4\"
 output: 
   pdf_document:
     extra_dependencies: [\"geometry\"]
@@ -3381,19 +3398,19 @@ remove(a)
 markdown_content <- c(markdown_content, tail_of_content)
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_3.Rmd")
+writeLines(markdown_content, "supplemental_information_4.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_3.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_4.Rmd", output_format = "pdf_document")
 ```
 
-## Supplemental Information 4
+## Supplemental Information 5
 
 ```{r}
 # Create the Markdown content
 markdown_content <- c('
 ---
-title: \"Supplemental Information 4\"
+title: \"Supplemental Information 5\"
 output: 
   pdf_document:
     extra_dependencies: ["geometry"]
@@ -3414,19 +3431,19 @@ A visualization of all 1.5-likelihood-of-odds (1.5-LOD) support intervals drawn 
 ')
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_4.Rmd")
+writeLines(markdown_content, "supplemental_information_5.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_4.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_5.Rmd", output_format = "pdf_document")
 ```
 
-## Supplemental Information 5
+## Supplemental Information 6
 
 ```{r}
 # Create the Markdown content
 markdown_content <- c("
 ---
-title: \"Supplemental Information 5\"
+title: \"Supplemental Information 6\"
 output: 
   pdf_document:
     extra_dependencies: [\"geometry\"]
@@ -3527,19 +3544,19 @@ remove(a)
 markdown_content <- c(markdown_content, tail_of_content)
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_5.Rmd")
+writeLines(markdown_content, "supplemental_information_6.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_5.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_6.Rmd", output_format = "pdf_document")
 ```
 
-## Supplemental Information 6
+## Supplemental Information 7
 
 ```{r}
 # Create the Markdown content
 markdown_content <- c('
 ---
-title: \"Supplemental Information 6\"
+title: \"Supplemental Information 7\"
 output: 
   pdf_document:
     extra_dependencies: ["geometry"]
@@ -3560,10 +3577,10 @@ A visualization of all 1.5-likelihood-of-odds (1.5-LOD) support intervals drawn 
 ')
 
 # Write the Markdown content to a file
-writeLines(markdown_content, "supplemental_information_6.Rmd")
+writeLines(markdown_content, "supplemental_information_7.Rmd")
 
 # Render the Markdown file to PDF
-rmarkdown::render("supplemental_information_6.Rmd", output_format = "pdf_document")
+rmarkdown::render("supplemental_information_7.Rmd", output_format = "pdf_document")
 ```
 
 ## Move all supplemental files to relevant folders 
