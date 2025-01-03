@@ -35,6 +35,7 @@ Interval mapping (IM) and multiple quantitative-trait-locus mapping (MQM) scans 
 ![j](\./results_images/Scan_IM_HD_RAL19.jpg)
 ![j](\./results_images/Scan_MQM1_HD_RAL19.jpg)
 ![j](\./results_images/Scan_MQM2_HD_RAL19.jpg)
+![j](\./results_images/Scan_MQM3_HD_RAL19.jpg)
 \pagebreak
 
 
@@ -54,12 +55,15 @@ Interval mapping (IM) and multiple quantitative-trait-locus mapping (MQM) scans 
 ## Plant Height Across All Environments
 ![j](\./results_images/Scan_IM_PH_ME.jpg)
 ![j](\./results_images/Scan_MQM1_PH_ME.jpg)
+![j](\./results_images/Scan_MQM2_PH_ME.jpg)
 \pagebreak
 
 
 ## Plant Height in Kinston, NC - 2020
 ![j](\./results_images/Scan_IM_PH_KIN20.jpg)
 ![j](\./results_images/Scan_MQM1_PH_KIN20.jpg)
+![j](\./results_images/Scan_MQM2_PH_KIN20.jpg)
+![j](\./results_images/Scan_MQM3_PH_KIN20.jpg)
 \pagebreak
 
 
@@ -122,6 +126,7 @@ Interval mapping (IM) and multiple quantitative-trait-locus mapping (MQM) scans 
 ![j](\./results_images/Scan_IM_FDK_KIN19.jpg)
 ![j](\./results_images/Scan_MQM1_FDK_KIN19.jpg)
 ![j](\./results_images/Scan_MQM2_FDK_KIN19.jpg)
+![j](\./results_images/Scan_MQM3_FDK_KIN19.jpg)
 \pagebreak
 
 
@@ -136,6 +141,7 @@ Interval mapping (IM) and multiple quantitative-trait-locus mapping (MQM) scans 
 ![j](\./results_images/Scan_IM_FDK_RAL19.jpg)
 ![j](\./results_images/Scan_MQM1_FDK_RAL19.jpg)
 ![j](\./results_images/Scan_MQM2_FDK_RAL19.jpg)
+![j](\./results_images/Scan_MQM3_FDK_RAL19.jpg)
 \pagebreak
 
 
@@ -181,6 +187,7 @@ Interval mapping (IM) and multiple quantitative-trait-locus mapping (MQM) scans 
 ![j](\./results_images/Scan_IM_DON_KIN20.jpg)
 ![j](\./results_images/Scan_MQM1_DON_KIN20.jpg)
 ![j](\./results_images/Scan_MQM2_DON_KIN20.jpg)
+![j](\./results_images/Scan_MQM3_DON_KIN20.jpg)
 \pagebreak
 
 

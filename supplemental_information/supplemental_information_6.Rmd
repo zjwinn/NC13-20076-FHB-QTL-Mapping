@@ -27,6 +27,8 @@ Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans 
 ## Visual Ratings in Kinston, NC - 2019
 ![j](\./results_images/Scan_IM_VR_KIN19_With_Adjustment.jpg)
 ![j](\./results_images/Scan_MQM1_VR_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_VR_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM3_VR_KIN19_With_Adjustment.jpg)
 \pagebreak
 
 
@@ -48,6 +50,7 @@ Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans 
 ## Visual Ratings in Raleigh, NC - 2020
 ![j](\./results_images/Scan_IM_VR_RAL20_With_Adjustment.jpg)
 ![j](\./results_images/Scan_MQM1_VR_RAL20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_VR_RAL20_With_Adjustment.jpg)
 \pagebreak
 
 
@@ -121,6 +124,7 @@ Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans 
 ## Deoxynivalenol Content in Kinston, NC - 2019
 ![j](\./results_images/Scan_IM_DON_KIN19_With_Adjustment.jpg)
 ![j](\./results_images/Scan_MQM1_DON_KIN19_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_DON_KIN19_With_Adjustment.jpg)
 \pagebreak
 
 
@@ -158,6 +162,7 @@ Interval mapping (IM) and multiple-quantitative-trait-locus mapping (MQM) scans 
 ## Deoxynivalenol Content in Warsaw, VA - 2020
 ![j](\./results_images/Scan_IM_DON_WAR20_With_Adjustment.jpg)
 ![j](\./results_images/Scan_MQM1_DON_WAR20_With_Adjustment.jpg)
+![j](\./results_images/Scan_MQM2_DON_WAR20_With_Adjustment.jpg)
 \pagebreak
 
 ## QTL Scan Information
