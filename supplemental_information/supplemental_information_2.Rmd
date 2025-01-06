@@ -11,17 +11,17 @@ options(width = 300)
 
 An R markdown of the phenotypic analysis and relevant information pertaining to interpretation of results. Analysis will be performed and results will be explained after relevant chunk information.  
 
-```{r, echo=FALSE, results='hide'}
+```{r}
 # Load necessary libraries
-library(gaston)
-library(tidyverse)
-library(asreml)
-library(ASMap)
-library(qtl)
-library(psych)
-library(knitr)
-library(ggplot2)
-library(patchwork)
+suppressMessages(library(gaston))
+suppressMessages(library(tidyverse))
+suppressMessages(library(asreml))
+suppressMessages(library(ASMap))
+suppressMessages(library(qtl))
+suppressMessages(library(psych))
+suppressMessages(library(knitr))
+suppressMessages(library(ggplot2))
+suppressMessages(library(patchwork))
 
 # Read in data
 pheno <- read.csv("NC13955_Combined_Data_Final.csv")
@@ -90,7 +90,9 @@ for (i in env) {
     }
     
     # If the trait is abnormally distributed
-    if (j %in% c("Visual Rating (0-9)", "Fusarium Damaged Kernels (%)", "DON Content (PPM)")) {
+    if (j %in% c("Visual Rating (0-9)", 
+                 "Fusarium Damaged Kernels (%)", 
+                 "DON Content (PPM)")) {
       # Run model and pull estimates
       fit1 <-  suppressMessages(
         suppressWarnings(
@@ -119,7 +121,8 @@ for (i in env) {
       
       # Check if model converges and if it results in critical error, 
       # default to RCBD with normal distribution
-      if (fit1$converge == FALSE | (i == "WAR20" & j == "Visual Rating (0-9)")) {
+      if (fit1$converge == FALSE | (i == "WAR20" & 
+                                    j == "Visual Rating (0-9)")) {
         # Fit model
         fit1 <- suppressMessages(
           suppressWarnings(
@@ -149,7 +152,11 @@ for (i in env) {
       }
       
       # Print message
-      print_message <- paste("### Summary of fixed effect model for", j, "in", i, "###")
+      print_message <- paste("### Summary of fixed effect model for", 
+                             j, 
+                             "in", 
+                             i, 
+                             "###")
       print(paste(rep("#", nchar(print_message)), collapse = ""))
       print(print_message)
       print(paste(rep("#", nchar(print_message)), collapse = ""))
@@ -158,7 +165,8 @@ for (i in env) {
       print(summary(fit1))
       
       # Pull BLUEs
-      pred <- predict(fit1, classify = "GENOTYPE", maxit = 75)$pvals[, c("GENOTYPE", "predicted.value")]
+      pred <- predict(fit1, classify = "GENOTYPE", maxit = 75)$pvals[, c("GENOTYPE", 
+                                                                         "predicted.value")]
       
       # Rename
       colnames(pred)[2] <- paste(j, "_", i, sep = "")
@@ -167,7 +175,11 @@ for (i in env) {
       BLUEs_loc <- left_join(BLUEs_loc, pred, by = "GENOTYPE")
       
       # Print message
-      print_message <- paste("### Summary of random effect model for", j, "in", i, "###")
+      print_message <- paste("### Summary of random effect model for",
+                             j, 
+                             "in", 
+                             i, 
+                             "###")
       print(paste(rep("#", nchar(print_message)), collapse = ""))
       print(print_message)
       print(paste(rep("#", nchar(print_message)), collapse = ""))
@@ -179,7 +191,11 @@ for (i in env) {
       h2 <- vpredict(fit2, h2~V2/(V2+V3))
       
       # Print message
-      print_message <- paste("### Narrow-sense heritability of", j, "in", i, "###")
+      print_message <- paste("### Narrow-sense heritability of", 
+                             j, 
+                             "in", 
+                             i, 
+                             "###")
       print(paste(rep("#", nchar(print_message)), collapse = ""))
       print(print_message)
       print(paste(rep("#", nchar(print_message)), collapse = "")) 
@@ -217,7 +233,11 @@ for (i in env) {
       ) 
       
       # Print message
-      print_message <- paste("### Summary of fixed effect model for", j, "in", i, "###")
+      print_message <- paste("### Summary of fixed effect model for",
+                             j, 
+                             "in", 
+                             i, 
+                             "###")
       print(paste(rep("#", nchar(print_message)), collapse = ""))
       print(print_message)
       print(paste(rep("#", nchar(print_message)), collapse = ""))
@@ -226,7 +246,8 @@ for (i in env) {
       print(summary(fit1))
 
       # Get BLUEs
-      pred <- predict(fit1, classify = "GENOTYPE")$pvals[, c("GENOTYPE", "predicted.value")]
+      pred <- predict(fit1, classify = "GENOTYPE")$pvals[, c("GENOTYPE", 
+                                                             "predicted.value")]
       
       # Rename
       colnames(pred)[2] <- paste(j, "_", i, sep = "")
@@ -235,7 +256,11 @@ for (i in env) {
       BLUEs_loc <- left_join(BLUEs_loc, pred, by = "GENOTYPE")
       
       # Print message
-      print_message <- paste("### Summary of random effect model for", j, "in", i, "###")
+      print_message <- paste("### Summary of random effect model for", 
+                             j, 
+                             "in", 
+                             i, 
+                             "###")
       print(paste(rep("#", nchar(print_message)), collapse = ""))
       print(print_message)
       print(paste(rep("#", nchar(print_message)), collapse = ""))
@@ -247,7 +272,11 @@ for (i in env) {
       h2 <- vpredict(fit2, h2~V2/(V2+V3))
       
       # Print message
-      print_message <- paste("### Narrow-sense heritability of", j, "in", i, "###")
+      print_message <- paste("### Narrow-sense heritability of", 
+                             j, 
+                             "in", 
+                             i, 
+                             "###")
       print(paste(rep("#", nchar(print_message)), collapse = ""))
       print(print_message)
       print(paste(rep("#", nchar(print_message)), collapse = "")) 
@@ -272,7 +301,7 @@ for (i in env) {
 
 Here I visualize the results of the above loops. Output from these loops are pairs plots which show scatter plots fit with a linear regression in the lower triangle. The diagonal of these plots shows the distribution of each trait which is listed as plain text above the distribution with the corresponding name of the environment (KIN = Kinston, NC; RAL = Raleigh, NC; WAR = Warsaw, VA; 19 = 2019; 20 = 2020).
 
-```{r, fig.width=10, fig.height=10}
+```{r, fig.width=12, fig.height=12}
 # For i in environments and traits
 for(i in traits) {
   # Parse blues and h2
@@ -289,7 +318,9 @@ for(i in traits) {
                digits = 2,
                density = FALSE,
                ellipses = FALSE,
-               main = paste("Visualization of", i, "correlations across environments"))
+               main = paste("Visualization of", 
+                            i, 
+                            "correlations across environments"))
 }
 ```
 
@@ -328,7 +359,9 @@ for (i in traits) {
   colnames(pheno_subset)[5] <- "Y"
   
   # Run mixed effects model for traits
-  if (i %in% c("Visual Rating (0-9)", "Fusarium Damaged Kernels (%)", "DON Content (PPM)")) {
+  if (i %in% c("Visual Rating (0-9)", 
+               "Fusarium Damaged Kernels (%)", 
+               "DON Content (PPM)")) {
     # Suppress output from the first model with Poisson distribution
     suppressWarnings(suppressMessages({
       capture.output({
@@ -514,7 +547,9 @@ for (i in traits) {
   # If the trait has been observed over many years
   if (n_year >= 2) {
     # If the trait is a disease reaction trait
-    if (i %in% c("Visual Rating (0-9)", "Fusarium Damaged Kernels (%)", "DON Content (PPM)")) {
+    if (i %in% c("Visual Rating (0-9)",
+                 "Fusarium Damaged Kernels (%)", 
+                 "DON Content (PPM)")) {
       # Run model for Poisson distributed traits
       mlm <- asreml(fixed = pheno[, i] ~ 1,
                     random = ~ GENOTYPE +
@@ -564,7 +599,9 @@ for (i in traits) {
   
   # Bind predictions to h2s data frame
   a <- rbind(pph2, emh2)
-  a <- cbind(data.frame(Trait = c(i, i)), data.frame(Type = c("Per-Plot", "Entry-Mean")), a)
+  a <- cbind(data.frame(Trait = c(i, i)), 
+             data.frame(Type = c("Per-Plot", "Entry-Mean")), 
+             a)
   h2s <- rbind(h2s, a)
   
   # Clean up temporary variables
